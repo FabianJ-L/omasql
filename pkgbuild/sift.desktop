@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Sift
+Comment=Query and browse SQLite databases
+Comment[de]=SQLite-Datenbanken abfragen und durchsehen
+Exec=sift %f
+Icon=sift
+Terminal=false
+Categories=Development;Database;
+MimeType=application/vnd.sqlite3;application/x-sqlite3;
+Keywords=sqlite;sql;database;query;
+StartupWMClass=sift

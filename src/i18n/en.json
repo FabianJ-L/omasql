@@ -1,0 +1,5 @@
+{
+  "%n rows": { "one": "%n row", "other": "%n rows" },
+  "%n rows changed": { "one": "%n row changed", "other": "%n rows changed" },
+  "Copied %n rows as CSV": { "one": "Copied %n row as CSV", "other": "Copied %n rows as CSV" }
+}

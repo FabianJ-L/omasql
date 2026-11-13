@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="Main.qml">Main.qml</file>
+        <file alias="TopBar.qml">TopBar.qml</file>
+        <file alias="BarButton.qml">BarButton.qml</file>
+        <file alias="PaneDivider.qml">PaneDivider.qml</file>
+        <file alias="WelcomeView.qml">WelcomeView.qml</file>
+        <file alias="SchemaPanel.qml">SchemaPanel.qml</file>
+        <file alias="SqlEditor.qml">SqlEditor.qml</file>
+        <file alias="ResultsPane.qml">ResultsPane.qml</file>
+        <file alias="RowInspector.qml">RowInspector.qml</file>
+        <file alias="HistoryPopup.qml">HistoryPopup.qml</file>
+        <file alias="HelpOverlay.qml">HelpOverlay.qml</file>
+        <file alias="FilterField.qml">FilterField.qml</file>
+        <file alias="i18n/en.json">i18n/en.json</file>
+        <file alias="i18n/de.json">i18n/de.json</file>
+    </qresource>
+</RCC>
