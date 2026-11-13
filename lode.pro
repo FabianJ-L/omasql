@@ -1,7 +1,7 @@
 QT += core gui qml quick quickcontrols2 dbus concurrent
 
 CONFIG += c++17 release
-TARGET = sift
+TARGET = lode
 TEMPLATE = app
 LIBS += -lsqlite3
 

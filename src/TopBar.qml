@@ -33,7 +33,7 @@ Rectangle {
         }
 
         Label {
-            text: backend.open ? backend.databaseName : "Sift"
+            text: backend.open ? backend.databaseName : "Lode"
             font.pixelSize: 15
             font.weight: Font.DemiBold
             color: theme.colors.brightForeground

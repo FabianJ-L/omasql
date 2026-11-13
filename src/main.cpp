@@ -1,4 +1,4 @@
-// sift — a light SQLite client: write queries with completion, browse the
+// lode — a light SQLite client: write queries with completion, browse the
 // schema, and read results without leaving the keyboard.
 
 #include <QCommandLineParser>
@@ -18,13 +18,13 @@
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
-    app.setApplicationName("sift");
+    app.setApplicationName("lode");
     app.setApplicationVersion("0.1.0");
 
-    // Matches the window to sift.desktop, so the compositor (Wayland app_id)
+    // Matches the window to lode.desktop, so the compositor (Wayland app_id)
     // and the launcher pick up the installed icon.
-    app.setDesktopFileName("sift");
-    app.setWindowIcon(QIcon::fromTheme("sift"));
+    app.setDesktopFileName("lode");
+    app.setWindowIcon(QIcon::fromTheme("lode"));
 
     QQuickStyle::setStyle("Material");
 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     parser.addPositionalArgument("database", QCoreApplication::translate("main", "The SQLite file to open."));
     parser.process(app);
 
-    qmlRegisterType<SqlHighlighter>("Sift", 1, 0, "SqlHighlighter");
+    qmlRegisterType<SqlHighlighter>("Lode", 1, 0, "SqlHighlighter");
 
     Theme theme;
     PortalFilePicker picker;

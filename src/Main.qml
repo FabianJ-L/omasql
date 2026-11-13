@@ -10,7 +10,7 @@ ApplicationWindow {
     minimumWidth: 820
     minimumHeight: 520
     visible: true
-    title: backend.open ? backend.databaseName + " — Sift" : "Sift"
+    title: backend.open ? backend.databaseName + " — Lode" : "Lode"
     color: theme.colors.background
 
     Material.theme: Material.Dark

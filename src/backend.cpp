@@ -27,7 +27,7 @@ QString defaultStateDirectory() {
     QString base = qEnvironmentVariable("XDG_STATE_HOME");
     if (base.isEmpty())
         base = QDir::homePath() + "/.local/state";
-    return base + "/sift";
+    return base + "/lode";
 }
 
 QString duration(qint64 ms) {

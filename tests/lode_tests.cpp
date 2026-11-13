@@ -19,7 +19,7 @@ public:
     void saveCsv(const QString &, const QString &) override { emit picked(next); }
 };
 
-class SiftTests : public QObject {
+class LodeTests : public QObject {
     Q_OBJECT
 
 private slots:
@@ -323,5 +323,5 @@ private:
     }
 };
 
-QTEST_MAIN(SiftTests)
-#include "sift_tests.moc"
+QTEST_MAIN(LodeTests)
+#include "lode_tests.moc"

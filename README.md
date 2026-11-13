@@ -1,10 +1,10 @@
-# Sift
+# Lode
 
 A light SQLite client for Omarchy: write queries with completion, browse the
 schema, and read results without leaving the keyboard. It follows the Omarchy
 theme and language live.
 
-![Sift showing a products table with the row inspector open](docs/screenshot.png)
+![Lode showing a products table with the row inspector open](docs/screenshot.png)
 
 - **Editor** with SQL highlighting, line numbers, auto-indent, and completion
   as you type: tables after `FROM`/`JOIN`, columns of the tables in the
@@ -53,11 +53,11 @@ Typing goes to the editor, so the single-key shortcuts other Omarchy apps use
 ## Build
 
 ```sh
-bin/build                 # build/sift
-build/sift some.db        # open a database (a new path creates one)
+bin/build                 # build/lode
+build/lode some.db        # open a database (a new path creates one)
 bin/test                  # run the tests offscreen
 bin/install               # package and install, so it shows in the launcher
 ```
 
 Needs `qt6-base`, `qt6-declarative`, `qt6-wayland`, and `sqlite`.
-History, recent files, and drafts live in `~/.local/state/sift/`.
+History, recent files, and drafts live in `~/.local/state/lode/`.
