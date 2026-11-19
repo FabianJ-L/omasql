@@ -4,13 +4,16 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 
 // The database's tables and views with their columns, keys, and row counts.
-// Clicking a table previews its rows; clicking a column inserts its name.
+// Clicking a table previews its rows and opens it; the arrow opens and closes
+// it. Clicking a column inserts its name.
 Rectangle {
     id: panel
     color: theme.colors.darkBackground
 
     signal insertRequested(string text)
 
+    // Table name -> true (open) or false (closed). A table nobody touched is
+    // open while the filter matches one of its columns.
     property var expanded: ({})
     readonly property string query: filter.text.trim().toLowerCase()
     readonly property var shown: {
@@ -26,11 +29,21 @@ Rectangle {
         filter.forceActiveFocus()
         filter.selectAll()
     }
-    function toggle(name) {
+    function isOpen(name, columnMatch) {
+        return name in expanded ? expanded[name] : columnMatch
+    }
+    function setOpen(name, open) {
         const next = Object.assign({}, expanded)
-        next[name] = !next[name]
+        next[name] = open
         expanded = next
     }
+    function collapseAll() {
+        const next = {}
+        for (const t of backend.tables)
+            next[t.name] = false
+        expanded = next
+    }
+    readonly property bool anyOpen: shown.some(e => isOpen(e.table.name, e.columnMatch))
     function formatCount(n) {
         return Number(n).toLocaleString(Qt.locale(translator.language), 'f', 0)
     }
@@ -56,6 +69,15 @@ Rectangle {
                 text: backend.tables.length
                 font.pixelSize: 12
                 color: theme.colors.mutedForeground
+            }
+            ToolButton {
+                text: "⊟"
+                font.pixelSize: 15
+                enabled: panel.anyOpen
+                Material.foreground: theme.colors.mutedForeground
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Collapse all")
+                onClicked: panel.collapseAll()
             }
             ToolButton {
                 text: "↻"
@@ -92,13 +114,23 @@ Rectangle {
                 id: tableEntry
                 required property var modelData
                 readonly property var table: modelData.table
-                readonly property bool open: panel.expanded[table.name] === true || modelData.columnMatch
+                readonly property bool open: panel.isOpen(table.name, modelData.columnMatch)
+                readonly property bool active: backend.resultTable === table.name
                 width: ListView.view.width
 
                 Rectangle {
+                    id: tableRow
                     width: parent.width
                     height: 32
-                    color: rowHover.hovered ? theme.colors.lighterBackground : "transparent"
+                    color: tableEntry.active ? Qt.alpha(theme.colors.selection, 0.8)
+                         : rowHover.hovered ? theme.colors.lighterBackground : "transparent"
+
+                    Rectangle {
+                        visible: tableEntry.active
+                        width: 2
+                        height: parent.height
+                        color: theme.accent
+                    }
 
                     RowLayout {
                         anchors.fill: parent
@@ -107,12 +139,13 @@ Rectangle {
                         spacing: 4
 
                         Text {
+                            id: arrow
                             Layout.preferredWidth: 18
                             horizontalAlignment: Text.AlignHCenter
                             text: tableEntry.open ? "▾" : "▸"
-                            color: theme.colors.mutedForeground
-                            font.pixelSize: 12
-                            TapHandler { onTapped: panel.toggle(tableEntry.table.name) }
+                            color: arrowHover.hovered ? theme.colors.foreground : theme.colors.mutedForeground
+                            font.pixelSize: 16
+                            HoverHandler { id: arrowHover }
                         }
                         Text {
                             text: tableEntry.table.kind === "view" ? "◇" : "▦"
@@ -135,12 +168,20 @@ Rectangle {
                     }
 
                     HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
+                    // One handler for the whole row, so a click on the arrow
+                    // can't both close the table and open it again.
                     TapHandler {
                         acceptedButtons: Qt.LeftButton
-                        onTapped: {
-                            if (!tableEntry.open)
-                                panel.toggle(tableEntry.table.name)
-                            backend.preview(tableEntry.table.name)
+                        onTapped: (point, button) => {
+                            const name = tableEntry.table.name
+                            const onArrow = arrow.mapFromItem(tableRow, point.position)
+                            if (onArrow.x >= -6 && onArrow.x <= arrow.width + 6) {
+                                panel.setOpen(name, !tableEntry.open)
+                            } else {
+                                if (!tableEntry.open)
+                                    panel.setOpen(name, true)
+                                backend.preview(name)
+                            }
                         }
                     }
                     TapHandler {
@@ -155,6 +196,10 @@ Rectangle {
                         id: tableMenu
                         Material.roundedScale: theme.radius
                         MenuItem { text: qsTr("Show rows"); onTriggered: backend.preview(tableEntry.table.name) }
+                        MenuItem {
+                            text: tableEntry.open ? qsTr("Collapse") : qsTr("Expand")
+                            onTriggered: panel.setOpen(tableEntry.table.name, !tableEntry.open)
+                        }
                         MenuItem { text: qsTr("Insert name"); onTriggered: panel.insertRequested(backend.identifier(tableEntry.table.name)) }
                         MenuItem {
                             text: qsTr("Insert SELECT")
