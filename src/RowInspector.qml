@@ -121,6 +121,17 @@ Rectangle {
                             "real": theme.colors.orange, "blob": theme.colors.magenta
                         })[field.modelData.kind] || (field.modelData.json ? theme.colors.cyan : theme.colors.foreground)
                     }
+                    Text {
+                        // A foreign key: a link to the row it points to.
+                        readonly property string reference: (backend.resultTable, backend.referenceOf(field.modelData.name))
+                        visible: reference.length > 0 && field.modelData.kind !== "null"
+                        text: "→ " + qsTr("Open %1").arg(reference)
+                        color: theme.colors.blue
+                        font.pixelSize: 11
+                        font.underline: refHover.hovered
+                        HoverHandler { id: refHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: backend.followReference(inspector.row, field.index) }
+                    }
                 }
             }
         }

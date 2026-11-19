@@ -14,6 +14,7 @@ Rectangle {
     readonly property var shortcuts: [
         ["Ctrl+Enter", qsTr("Run the statement under the cursor, or the selection")],
         ["Ctrl+Shift+Enter", qsTr("Run everything in the editor")],
+        ["Ctrl+Shift+E", qsTr("Show the query plan for the statement under the cursor")],
         ["Esc", qsTr("Cancel a running query, close lists")],
         ["Ctrl+Space", qsTr("Suggest tables, columns, keywords")],
         ["Tab", qsTr("Insert a suggestion (Enter too, once picked with the arrows)")],
@@ -24,6 +25,9 @@ Rectangle {
         ["Ctrl+K", qsTr("Filter tables and columns")],
         ["Ctrl+1 / 2 / 3", qsTr("Focus tables, editor, results")],
         ["Arrows, Ctrl+C", qsTr("Move through results, copy a cell")],
+        ["Shift+Arrows, Shift+Click", qsTr("Select a block of cells to copy")],
+        ["Ctrl+F", qsTr("Filter the rows shown")],
+        ["Ctrl+Click, Enter", qsTr("Follow a foreign key to its row")],
         ["Ctrl+Shift+C", qsTr("Copy results as CSV")],
         ["Ctrl+E", qsTr("Export results as CSV")],
         ["Ctrl+R", qsTr("Reload the schema")],

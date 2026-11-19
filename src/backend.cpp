@@ -4,6 +4,7 @@
 #include "sqltext.h"
 
 #include <QClipboard>
+#include <algorithm>
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
@@ -50,7 +51,7 @@ Backend::Backend(FilePicker *picker, const QString &stateDirectory, QObject *par
                 openDatabase(path);
             } else if (pending == Pending::Export) {
                 QString error;
-                if (writeFile(path, m_results.toCsv().toUtf8(), &error))
+                if (writeFile(path, m_results.format(m_exportFormat, m_resultTable).toUtf8(), &error))
                     setNotice(tr("Saved %1").arg(QFileInfo(path).fileName()));
                 else
                     setNotice(tr("Couldn't save %1: %2").arg(QFileInfo(path).fileName(), error));
@@ -139,6 +140,7 @@ bool Backend::openDatabase(const QString &rawPath) {
     m_results.clear();
     m_hasResults = false;
     m_lastSql.clear();
+    m_resultTable.clear();
     setStatus({}, {});
     clearNotice();
     refreshSchema();
@@ -163,6 +165,7 @@ void Backend::closeDatabase() {
     m_results.clear();
     m_hasResults = false;
     m_lastSql.clear();
+    m_resultTable.clear();
     setStatus({}, {});
     emit schemaChanged();
     emit databaseChanged();
@@ -185,14 +188,66 @@ void Backend::refreshSchema() {
 void Backend::run(const QString &sql) { start(sql, true); }
 
 void Backend::preview(const QString &table) {
-    start("SELECT * FROM " + SqlText::identifier(table), false);
+    start("SELECT * FROM " + SqlText::identifier(table), false, table);
 }
 
-void Backend::start(const QString &sql, bool rememberIt) {
+// SQLite explains one statement at a time, and anything after the first
+// would run for real, so only the first one goes.
+void Backend::explain(const QString &sql) {
+    for (const auto &segment : SqlText::split(sql)) {
+        if (segment.blank)
+            continue;
+        if (segment.text.startsWith("EXPLAIN", Qt::CaseInsensitive))
+            start(segment.text, false);
+        else
+            start("EXPLAIN QUERY PLAN " + segment.text, false);
+        return;
+    }
+}
+
+const TableInfo *Backend::findTable(const QString &name) const {
+    for (const auto &t : m_schema)
+        if (t.name.compare(name, Qt::CaseInsensitive) == 0)
+            return &t;
+    return nullptr;
+}
+
+QString Backend::referenceOf(const QString &column) const {
+    if (const TableInfo *table = findTable(m_resultTable))
+        for (const auto &c : table->columns)
+            if (c.name == column)
+                return c.references;
+    return {};
+}
+
+void Backend::followReference(int row, int column) {
+    const QString reference = referenceOf(m_results.columnName(column));
+    const QVariant value = m_results.value(row, column);
+    if (reference.isEmpty() || value.isNull())
+        return;
+    const int dot = reference.indexOf('.');
+    const QString table = dot < 0 ? reference : reference.left(dot);
+    QString target = dot < 0 ? QString() : reference.mid(dot + 1);
+    // A foreign key without a column points at the other table's primary key.
+    if (target.isEmpty()) {
+        target = "rowid";
+        if (const TableInfo *info = findTable(table))
+            for (const auto &c : info->columns)
+                if (c.primaryKey) {
+                    target = c.name;
+                    break;
+                }
+    }
+    start("SELECT * FROM " + SqlText::identifier(table) + " WHERE " + SqlText::identifier(target)
+              + " = " + ResultModel::sqlLiteral(value), false, table);
+}
+
+void Backend::start(const QString &sql, bool rememberIt, const QString &table) {
     if (!isOpen() || running() || sql.trimmed().isEmpty())
         return;
     if (rememberIt)
         remember(sql.trimmed());
+    m_runningTable = table;
     m_lastSql = sql.trimmed();
     setStatus(tr("Running…"), "running");
     const Database *db = &m_db;
@@ -212,11 +267,48 @@ void Backend::finished() {
     emit runningChanged();
 
     if (r.hasRows) {
-        m_results.setResult(r.columns, r.types, r.rows);
+        QStringList columns = r.columns, types = r.types;
+        QList<QVariantList> rows = r.rows;
+        // A query plan reads as the tree the sqlite3 shell draws, not as
+        // rows of ids pointing at their parents.
+        if (columns == QStringList{"id", "parent", "notused", "detail"}) {
+            QHash<qint64, int> depth;
+            QList<QVariantList> plan;
+            for (const auto &step : rows) {
+                const int d = depth.value(step.value(1).toLongLong(), -1) + 1;
+                depth.insert(step.value(0).toLongLong(), d);
+                plan << QVariantList{QString(d * 3, ' ') + QStringLiteral("└─ ") + step.value(3).toString()};
+            }
+            columns = {tr("Query plan")};
+            types = {QString()};
+            rows = plan;
+        }
+        m_results.setResult(columns, types, rows);
         m_hasResults = true;
+        m_resultTable = m_runningTable;
+        // A plain SELECT over one table counts as that table's rows when
+        // every column it returns belongs to the table.
+        if (m_resultTable.isEmpty()) {
+            const auto segments = SqlText::split(m_lastSql);
+            for (auto it = segments.rbegin(); it != segments.rend(); ++it) {
+                if (it->blank)
+                    continue;
+                const QStringList tables = SqlText::referencedTables(it->text, tableNames());
+                if (it->text.startsWith("SELECT", Qt::CaseInsensitive) && tables.size() == 1)
+                    if (const TableInfo *table = findTable(tables.first())) {
+                        QSet<QString> names;
+                        for (const auto &c : table->columns)
+                            names.insert(c.name);
+                        if (std::all_of(columns.begin(), columns.end(), [&](const QString &c) { return names.contains(c); }))
+                            m_resultTable = table->name;
+                    }
+                break;
+            }
+        }
     } else if (r.ok) {
         m_results.clear();
         m_hasResults = false;
+        m_resultTable.clear();
     }
 
     QString text, kind = "ok";
@@ -351,19 +443,41 @@ void Backend::copy(const QString &text) {
     setNotice(tr("Copied"));
 }
 
-void Backend::copyResultsCsv() {
-    if (!m_hasResults)
-        return;
-    QGuiApplication::clipboard()->setText(m_results.toCsv());
-    setNotice(tr("Copied %n rows as CSV", "", m_results.rowTotal()));
+namespace {
+
+struct Format {
+    QString name, extension;
+};
+
+Format formatInfo(const QString &format) {
+    if (format == "json")
+        return {"JSON", "json"};
+    if (format == "markdown")
+        return {"Markdown", "md"};
+    if (format == "sql")
+        return {"SQL", "sql"};
+    return {"CSV", "csv"};
 }
 
-void Backend::exportCsv() {
+} // namespace
+
+void Backend::copyResults(const QString &format) {
+    if (!m_hasResults)
+        return;
+    QGuiApplication::clipboard()->setText(m_results.format(format, m_resultTable));
+    setNotice(tr("Copied %n rows as %1", "", m_results.rowTotal()).arg(formatInfo(format).name));
+}
+
+void Backend::exportResults(const QString &format) {
     if (!m_picker || !m_hasResults)
         return;
     m_pending = Pending::Export;
-    const QString base = isOpen() && m_db.path() != ":memory:" ? QFileInfo(m_db.path()).completeBaseName() : "results";
-    m_picker->saveCsv(tr("Export results as CSV"), base + ".csv");
+    m_exportFormat = format;
+    const Format info = formatInfo(format);
+    QString base = !m_resultTable.isEmpty() ? m_resultTable
+                 : isOpen() && m_db.path() != ":memory:" ? QFileInfo(m_db.path()).completeBaseName() : "results";
+    m_picker->saveFile(tr("Export results as %1").arg(info.name), base + "." + info.extension,
+                       tr("%1 files").arg(info.name), "*." + info.extension);
 }
 
 void Backend::clearNotice() { setNotice({}); }

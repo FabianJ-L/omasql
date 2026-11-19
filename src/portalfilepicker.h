@@ -13,7 +13,8 @@ public:
     explicit PortalFilePicker(QObject *parent = nullptr);
 
     void openDatabase(const QString &title) override;
-    void saveCsv(const QString &title, const QString &suggestedName) override;
+    void saveFile(const QString &title, const QString &suggestedName,
+                  const QString &filterName, const QString &pattern) override;
 
 private slots:
     void onResponse(uint response, const QVariantMap &results);

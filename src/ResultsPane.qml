@@ -4,8 +4,8 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import QtQml.Models
 
-// The last query's rows: a status line, then a grid with typed column
-// headers, row numbers, and click-to-sort.
+// The last query's rows: a status line with a filter, then a grid with typed
+// column headers, row numbers, click-to-sort, and columns you can drag wider.
 Rectangle {
     id: pane
     color: theme.colors.background
@@ -18,6 +18,41 @@ Rectangle {
         selection.clear()
         selection.clearCurrentIndex()
     }
+    function focusFilter() {
+        filter.forceActiveFocus()
+        filter.selectAll()
+    }
+    // The selected block of cells (Shift+click or Shift+arrows), or the
+    // current cell, as text to paste into a spreadsheet.
+    function copySelection() {
+        const indexes = selection.selectedIndexes
+        if (indexes.length > 1) {
+            let top = Infinity, left = Infinity, bottom = -1, right = -1
+            for (const i of indexes) {
+                top = Math.min(top, i.row); bottom = Math.max(bottom, i.row)
+                left = Math.min(left, i.column); right = Math.max(right, i.column)
+            }
+            backend.copy(backend.results.rangeText(top, left, bottom, right))
+        } else if (table.currentRow >= 0) {
+            backend.copy(backend.results.cellText(table.currentRow, table.currentColumn))
+        }
+    }
+    // Per column: the "table.column" it points to when it is a foreign key of
+    // the table the rows come from, else "".
+    readonly property var references: {
+        backend.results.revision; backend.resultTable
+        const out = []
+        for (let c = 0; c < backend.results.columns; ++c)
+            out.push(backend.referenceOf(backend.results.columnName(c)))
+        return out
+    }
+    readonly property var formats: [
+        { id: "csv", label: "CSV" },
+        { id: "json", label: "JSON" },
+        { id: "markdown", label: qsTr("Markdown table") },
+        { id: "sql", label: qsTr("SQL INSERT statements") }
+    ]
+
     function focusGrid() {
         if (table.currentRow < 0 && table.rows > 0)
             selection.setCurrentIndex(backend.results.index(0, 0), ItemSelectionModel.ClearAndSelect)
@@ -67,19 +102,73 @@ Rectangle {
                     font.pixelSize: 12
                     elide: Text.ElideRight
                 }
-                BarButton {
+                Text {
+                    visible: backend.hasResults && backend.results.filter.length > 0
+                    text: qsTr("%1 of %2").arg(backend.results.rows.toLocaleString(Qt.locale(translator.language), 'f', 0))
+                                         .arg(backend.results.totalRows.toLocaleString(Qt.locale(translator.language), 'f', 0))
+                    color: theme.colors.mutedForeground
+                    font.pixelSize: 12
+                }
+                FilterField {
+                    id: filter
                     visible: backend.hasResults
-                    text: qsTr("Copy CSV")
-                    hint: "Ctrl+Shift+C"
+                    Layout.preferredWidth: Math.min(240, pane.width * 0.25)
                     implicitHeight: 24
-                    onClicked: backend.copyResultsCsv()
+                    placeholder: qsTr("Filter rows")
+                    hint: "Ctrl+F"
+                    onTextChanged: filterDelay.restart()
+                    onEscaped: { text = ""; backend.results.filter = ""; table.forceActiveFocus() }
+                    onAccepted: { backend.results.filter = text; pane.focusGrid() }
+                    onDownPressed: pane.focusGrid()
+                    Timer {
+                        id: filterDelay
+                        interval: 150
+                        onTriggered: backend.results.filter = filter.text
+                    }
+                    Connections {
+                        target: backend.results
+                        function onChanged() { if (backend.results.filter.length === 0 && filter.text.length > 0 && !filterDelay.running) filter.text = "" }
+                    }
                 }
                 BarButton {
+                    id: copyButton
                     visible: backend.hasResults
-                    text: qsTr("Export…")
+                    text: qsTr("Copy") + " ▾"
+                    hint: "Ctrl+Shift+C"
+                    implicitHeight: 24
+                    onClicked: copyMenu.popup(copyButton, 0, copyButton.height + 2)
+                    Menu {
+                        id: copyMenu
+                        Material.roundedScale: theme.radius
+                        Repeater {
+                            model: pane.formats
+                            MenuItem {
+                                required property var modelData
+                                text: modelData.label
+                                onTriggered: backend.copyResults(modelData.id)
+                            }
+                        }
+                    }
+                }
+                BarButton {
+                    id: exportButton
+                    visible: backend.hasResults
+                    text: qsTr("Export") + " ▾"
                     hint: "Ctrl+E"
                     implicitHeight: 24
-                    onClicked: backend.exportCsv()
+                    onClicked: exportMenu.popup(exportButton, 0, exportButton.height + 2)
+                    Menu {
+                        id: exportMenu
+                        Material.roundedScale: theme.radius
+                        Repeater {
+                            model: pane.formats
+                            MenuItem {
+                                required property var modelData
+                                text: modelData.label + "…"
+                                onTriggered: backend.exportResults(modelData.id)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -184,6 +273,7 @@ Rectangle {
                 visible: backend.hasResults
                 clip: true
                 model: backend.results
+                resizableColumns: true
                 boundsBehavior: Flickable.StopAtBounds
                 keyNavigationEnabled: true
                 pointerNavigationEnabled: true
@@ -198,17 +288,30 @@ Rectangle {
                     return Math.max(70, Math.min(440, chars * pane.charWidth + 34))
                 }
 
+                // A new result starts with fitted widths again; a filter or a
+                // sort keeps the widths someone dragged.
+                property int shownRevision: -1
                 Connections {
                     target: backend.results
                     function onChanged() {
+                        if (table.shownRevision !== backend.results.revision) {
+                            table.shownRevision = backend.results.revision
+                            table.clearColumnWidths()
+                        }
+                        pane.clearSelection()
                         table.forceLayout()
-                        table.positionViewAtRow(0, TableView.AlignTop)
+                        if (table.rows > 0)
+                            table.positionViewAtRow(0, TableView.AlignTop)
                     }
                 }
 
                 Keys.onPressed: event => {
-                    if (event.matches(StandardKey.Copy) && table.currentRow >= 0) {
-                        backend.copy(backend.results.cellText(table.currentRow, table.currentColumn))
+                    if (event.matches(StandardKey.Copy)) {
+                        pane.copySelection()
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        if (table.currentRow >= 0 && backend.referenceOf(backend.results.columnName(table.currentColumn)).length)
+                            backend.followReference(table.currentRow, table.currentColumn)
                         event.accepted = true
                     }
                 }
@@ -218,9 +321,13 @@ Rectangle {
                     required property string display
                     required property string kind
                     required property bool current
+                    required property bool selected
                     required property int row
+                    required property int column
+                    readonly property string reference: pane.references[column] || ""
+                    readonly property bool link: reference.length > 0 && kind !== "null"
                     implicitHeight: 28
-                    color: current ? theme.colors.selection
+                    color: current || selected ? theme.colors.selection
                          : row === table.currentRow ? Qt.alpha(theme.colors.selection, 0.45)
                          : row % 2 ? theme.colors.background : Qt.lighter(theme.colors.background, 1.06)
                     border.width: current ? 1 : 0
@@ -239,12 +346,36 @@ Rectangle {
                         font.family: win.mono
                         font.pixelSize: 13
                         font.italic: cell.kind === "null"
-                        color: ({
+                        font.underline: cell.link && linkHover.hovered
+                        color: cell.link ? theme.colors.blue : ({
                             "null": theme.colors.mutedForeground, "integer": theme.colors.orange,
                             "real": theme.colors.orange, "blob": theme.colors.magenta
                         })[cell.kind] || theme.colors.foreground
                     }
+                    HoverHandler {
+                        id: linkHover
+                        enabled: cell.link
+                        acceptedModifiers: Qt.ControlModifier
+                        cursorShape: Qt.PointingHandCursor
+                    }
+                    TapHandler {
+                        enabled: cell.link
+                        acceptedModifiers: Qt.ControlModifier
+                        onTapped: backend.followReference(cell.row, cell.column)
+                    }
+                    ToolTip.visible: cell.link && cellHover.hovered
+                    ToolTip.delay: 900
+                    ToolTip.text: qsTr("Ctrl+click or Enter opens %1").arg(cell.reference)
+                    HoverHandler { id: cellHover; enabled: cell.link }
                 }
+            }
+
+            Text {
+                anchors.centerIn: parent
+                visible: backend.hasResults && backend.results.rows === 0 && backend.results.filter.length > 0
+                text: qsTr("No rows match “%1”").arg(backend.results.filter)
+                color: theme.colors.lightForeground
+                font.pixelSize: 15
             }
 
             Column {

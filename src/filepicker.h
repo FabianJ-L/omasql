@@ -14,7 +14,10 @@ public:
     ~FilePicker() override = default;
 
     virtual void openDatabase(const QString &title) = 0;
-    virtual void saveCsv(const QString &title, const QString &suggestedName) = 0;
+    // filterName and pattern describe the one file type offered, like
+    // "CSV files" and "*.csv".
+    virtual void saveFile(const QString &title, const QString &suggestedName,
+                          const QString &filterName, const QString &pattern) = 0;
 
 signals:
     void picked(const QString &path);

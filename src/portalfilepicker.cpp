@@ -75,10 +75,11 @@ void PortalFilePicker::openDatabase(const QString &title) {
     request("OpenFile", title, options);
 }
 
-void PortalFilePicker::saveCsv(const QString &title, const QString &suggestedName) {
+void PortalFilePicker::saveFile(const QString &title, const QString &suggestedName,
+                                const QString &filterName, const QString &pattern) {
     QVariantMap options;
     options["current_name"] = suggestedName;
-    options["filters"] = QVariant::fromValue(QList<Filter>{{tr("CSV files"), {{0, "*.csv"}}}});
+    options["filters"] = QVariant::fromValue(QList<Filter>{{filterName, {{0, pattern}}}});
     options["modal"] = true;
     request("SaveFile", title, options);
 }

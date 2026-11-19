@@ -265,7 +265,10 @@ QString previousKeyword(const QString &sql, int position) {
 
 static const QRegularExpression &referenceExpression() {
     static const QRegularExpression expression(
-        R"re((?:\bFROM|\bJOIN|\bUPDATE|\bINTO|,)\s+("(?:[^"]|"")+"|`[^`]+`|\[[^\]]+\]|[\w$]+)(?:\s+(?:AS\s+)?([\w$]+))?)re",
+        // The alias may not be a keyword, or "a, b FROM t" would read FROM as b's
+        // alias and swallow the table after it.
+        R"re((?:\bFROM|\bJOIN|\bUPDATE|\bINTO|,)\s+("(?:[^"]|"")+"|`[^`]+`|\[[^\]]+\]|[\w$]+))re"
+        R"re((?:\s+(?:AS\s+)?(?!(?:FROM|WHERE|JOIN|ON|USING|GROUP|ORDER|LIMIT|SET|VALUES|SELECT|LEFT|RIGHT|INNER|OUTER|CROSS|NATURAL|FULL|UNION|EXCEPT|INTERSECT|HAVING|WINDOW|RETURNING|DEFAULT)\b)([\w$]+))?)re",
         QRegularExpression::CaseInsensitiveOption | QRegularExpression::UseUnicodePropertiesOption);
     return expression;
 }

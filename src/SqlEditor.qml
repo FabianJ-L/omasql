@@ -73,6 +73,17 @@ Rectangle {
         flash.show(start, end)
         win.requestRun(sql)
     }
+    // The plan SQLite would use for the statement under the cursor (or the
+    // selection), without running it.
+    function explainCurrent() {
+        const sql = area.selectionEnd > area.selectionStart
+                  ? area.text.substring(area.selectionStart, area.selectionEnd)
+                  : backend.statementAt(area.text, area.cursorPosition).text
+        if (sql.trim().length === 0 || !backend.open || backend.running)
+            return
+        runBase = -1
+        backend.explain(sql)
+    }
     function runAll() {
         if (area.text.trim().length === 0)
             return

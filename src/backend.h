@@ -25,6 +25,9 @@ class Backend : public QObject {
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(QString statusKind READ statusKind NOTIFY statusChanged)
     Q_PROPERTY(QString lastSql READ lastSql NOTIFY statusChanged)
+    // The table the shown rows come from, when they come from exactly one:
+    // a table preview, a followed reference, or a SELECT over one table.
+    Q_PROPERTY(QString resultTable READ resultTable NOTIFY statusChanged)
     Q_PROPERTY(QVariantList recent READ recent NOTIFY recentChanged)
     Q_PROPERTY(QVariantList history READ history NOTIFY historyChanged)
     Q_PROPERTY(QString notice READ notice NOTIFY noticeChanged)
@@ -46,6 +49,7 @@ public:
     QString status() const { return m_status; }
     QString statusKind() const { return m_statusKind; }
     QString lastSql() const { return m_lastSql; }
+    QString resultTable() const { return m_resultTable; }
     QVariantList recent() const;
     QVariantList history() const { return m_history; }
     QString notice() const { return m_notice; }
@@ -60,6 +64,11 @@ public:
 
     Q_INVOKABLE void run(const QString &sql);
     Q_INVOKABLE void preview(const QString &table);
+    Q_INVOKABLE void explain(const QString &sql);
+    // "customers.id" when the result column is a foreign key of resultTable.
+    Q_INVOKABLE QString referenceOf(const QString &column) const;
+    // Shows the row a foreign key value points to.
+    Q_INVOKABLE void followReference(int row, int column);
     Q_INVOKABLE void cancel();
     void waitForIdle();
 
@@ -69,8 +78,11 @@ public:
     Q_INVOKABLE QString identifier(const QString &name) const;
 
     Q_INVOKABLE void copy(const QString &text);
-    Q_INVOKABLE void copyResultsCsv();
-    Q_INVOKABLE void exportCsv();
+    Q_INVOKABLE void copyResultsCsv() { copyResults("csv"); }
+    Q_INVOKABLE void exportCsv() { exportResults("csv"); }
+    // format is "csv", "json", "markdown", or "sql" (INSERT statements).
+    Q_INVOKABLE void copyResults(const QString &format);
+    Q_INVOKABLE void exportResults(const QString &format);
     Q_INVOKABLE void clearNotice();
 
     Q_INVOKABLE QString draft() const;
@@ -87,7 +99,8 @@ signals:
     void queryFinished(bool ok, int errorOffset);
 
 private:
-    void start(const QString &sql, bool remember);
+    void start(const QString &sql, bool remember, const QString &table = {});
+    const TableInfo *findTable(const QString &name) const;
     void finished();
     void setStatus(const QString &status, const QString &kind);
     void setNotice(const QString &notice);
@@ -105,6 +118,7 @@ private:
     QFutureWatcher<QueryResult> m_watcher;
     bool m_hasResults = false;
     QString m_status, m_statusKind, m_lastSql, m_notice;
+    QString m_resultTable, m_runningTable, m_exportFormat;
     QStringList m_recent;
     QVariantList m_history;
     enum class Pending { None, Open, Export } m_pending = Pending::None;

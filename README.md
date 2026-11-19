@@ -13,14 +13,22 @@ theme and language live.
   queries run in the background and **Esc** cancels them. Errors put the
   cursor where SQLite found the problem.
 - **Schema browser** with row counts, primary and foreign keys, indexes, and
-  a filter over tables and columns. Click a table to see its rows, click a
-  column to insert its name.
+  a filter over tables and columns. Click a table to see its rows, click its
+  arrow to open or close it, click a column to insert its name.
 - **Results grid** with typed headers, NULLs and numbers set apart, click to
-  sort, arrows to move, Ctrl+C to copy a cell.
+  sort, drag a column edge to resize, arrows to move. **Ctrl+F** filters the
+  rows as you type; Shift+arrows select a block that Ctrl+C copies in a form
+  spreadsheets paste.
+- **Foreign keys are links**: Ctrl+click a value (or press Enter on it, or
+  use the link in the row inspector) to open the row it points to.
+- **Query plans**: Ctrl+Shift+E shows how SQLite will run the statement
+  under the cursor, as the tree the `sqlite3` shell draws.
 - **Row inspector** shows the selected row field by field, JSON indented and
   blobs as hex.
-- History, CSV copy and export, a scratch database in memory, and a draft per
-  database that survives restarts.
+- Copy or export results as **CSV, JSON, a Markdown table, or SQL INSERT
+  statements**.
+- History, a scratch database in memory, and a draft per database that
+  survives restarts.
 - DROP, and DELETE or UPDATE without WHERE, ask before running.
 
 ## Shortcuts
@@ -29,6 +37,7 @@ theme and language live.
 | --- | --- |
 | Ctrl+Enter | Run the statement under the cursor, or the selection |
 | Ctrl+Shift+Enter | Run everything in the editor |
+| Ctrl+Shift+E | Show the query plan for the statement under the cursor |
 | Esc | Cancel a running query, close lists |
 | Ctrl+Space | Suggest tables, columns, keywords |
 | Tab | Insert a suggestion (Enter too, once picked with the arrows) |
@@ -39,6 +48,9 @@ theme and language live.
 | Ctrl+K | Filter tables and columns |
 | Ctrl+1 / 2 / 3 | Focus tables, editor, results |
 | Arrows, Ctrl+C | Move through results, copy a cell |
+| Shift+Arrows, Shift+Click | Select a block of cells to copy |
+| Ctrl+F | Filter the rows shown |
+| Ctrl+Click, Enter | Follow a foreign key to its row |
 | Ctrl+Shift+C | Copy results as CSV |
 | Ctrl+E | Export results as CSV |
 | Ctrl+R | Reload the schema |

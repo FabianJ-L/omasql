@@ -9,6 +9,7 @@ Rectangle {
     color: theme.colors.darkBackground
 
     signal runClicked()
+    signal explainClicked()
     signal helpClicked()
     signal historyClicked()
 
@@ -57,6 +58,12 @@ Rectangle {
             text: qsTr("Open")
             hint: "Ctrl+O"
             onClicked: backend.chooseDatabase()
+        }
+        BarButton {
+            visible: backend.open && bar.width > 900
+            text: qsTr("Explain")
+            hint: "Ctrl+⇧E"
+            onClicked: bar.explainClicked()
         }
         BarButton {
             visible: backend.open

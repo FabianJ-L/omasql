@@ -1,7 +1,9 @@
 #include "resultmodel.h"
 
 #include <QCoreApplication>
+#include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QLocale>
 #include <algorithm>
 
@@ -59,7 +61,9 @@ void ResultModel::setResult(const QStringList &columns, const QStringList &types
     beginResetModel();
     m_columns = columns;
     m_types = types;
+    m_all = rows;
     m_rows = rows;
+    m_filter.clear();
     m_sortColumn = -1;
     m_descending = false;
     ++m_revision;
@@ -165,9 +169,11 @@ QString ResultModel::fullText(const QVariant &value, bool *json) {
 int ResultModel::columnChars(int column) const {
     int chars = m_columns.value(column).size();
     chars = qMax(chars, m_types.value(column).size());
-    const int sample = qMin<qsizetype>(m_rows.size(), 300);
+    // Measured over every row, not the filtered ones, so columns keep their
+    // width while a filter is typed.
+    const int sample = qMin<qsizetype>(m_all.size(), 300);
     for (int r = 0; r < sample; ++r)
-        chars = qMax(chars, int(displayText(m_rows[r].value(column)).size()));
+        chars = qMax(chars, int(displayText(m_all[r].value(column)).size()));
     return qMin(chars, 60);
 }
 
@@ -178,14 +184,47 @@ void ResultModel::sortBy(int column) {
     // possible once sorted, so it simply toggles.
     const bool descending = m_sortColumn == column ? !m_descending : false;
     beginResetModel();
-    std::stable_sort(m_rows.begin(), m_rows.end(), [&](const QVariantList &a, const QVariantList &b) {
+    std::stable_sort(m_all.begin(), m_all.end(), [&](const QVariantList &a, const QVariantList &b) {
         const int c = compare(a.value(column), b.value(column));
         return descending ? c > 0 : c < 0;
     });
     m_sortColumn = column;
     m_descending = descending;
+    applyFilter();
     endResetModel();
     emit changed();
+}
+
+void ResultModel::setFilter(const QString &filter) {
+    const QString trimmed = filter.trimmed();
+    if (trimmed == m_filter)
+        return;
+    beginResetModel();
+    m_filter = trimmed;
+    applyFilter();
+    endResetModel();
+    emit changed();
+}
+
+// A row stays when any of its values contains every word of the filter,
+// ignoring case, the way TablePlus and Beekeeper Studio filter a grid.
+void ResultModel::applyFilter() {
+    if (m_filter.isEmpty()) {
+        m_rows = m_all;
+        return;
+    }
+    const QStringList words = m_filter.split(' ', Qt::SkipEmptyParts);
+    m_rows.clear();
+    for (const auto &row : m_all) {
+        QStringList values;
+        values.reserve(row.size());
+        for (const auto &value : row)
+            values << (value.isNull() ? QStringLiteral("NULL") : value.typeId() == QMetaType::QByteArray
+                           ? QString::fromLatin1(value.toByteArray().toHex()) : value.toString());
+        const QString text = values.join('\x1f');
+        if (std::all_of(words.begin(), words.end(), [&](const QString &w) { return text.contains(w, Qt::CaseInsensitive); }))
+            m_rows << row;
+    }
 }
 
 QVariantList ResultModel::rowDetails(int row) const {
@@ -220,6 +259,114 @@ QString ResultModel::rowText(int row) const {
     for (int c = 0; c < m_columns.size(); ++c)
         fields << cellText(row, c);
     return fields.join('\t');
+}
+
+QVariant ResultModel::value(int row, int column) const {
+    if (row < 0 || row >= m_rows.size())
+        return {};
+    return m_rows[row].value(column);
+}
+
+QString ResultModel::rangeText(int top, int left, int bottom, int right) const {
+    top = qMax(0, top);
+    left = qMax(0, left);
+    bottom = qMin(int(m_rows.size()) - 1, bottom);
+    right = qMin(int(m_columns.size()) - 1, right);
+    QStringList lines;
+    for (int r = top; r <= bottom; ++r) {
+        QStringList fields;
+        for (int c = left; c <= right; ++c)
+            fields << cellText(r, c).replace('\t', ' ').replace('\n', ' ');
+        lines << fields.join('\t');
+    }
+    return lines.join('\n');
+}
+
+QString ResultModel::sqlLiteral(const QVariant &value) {
+    switch (value.typeId()) {
+    case QMetaType::UnknownType: return "NULL";
+    case QMetaType::LongLong: return QString::number(value.toLongLong());
+    case QMetaType::Double: {
+        const double d = value.toDouble();
+        if (qIsInf(d))
+            return d > 0 ? "9e999" : "-9e999";
+        QString text = QString::number(d, 'g', QLocale::FloatingPointShortest);
+        // Keep it a REAL when read back: 2.0 prints as "2".
+        if (!text.contains('.') && !text.contains('e') && !text.contains("inf"))
+            text += ".0";
+        return text;
+    }
+    case QMetaType::QByteArray: return "X'" + QString::fromLatin1(value.toByteArray().toHex()) + "'";
+    default: return "'" + value.toString().replace('\'', "''") + "'";
+    }
+}
+
+QString ResultModel::toJson() const {
+    QJsonArray rows;
+    for (const auto &row : m_rows) {
+        QJsonObject object;
+        for (int c = 0; c < m_columns.size(); ++c) {
+            const QVariant value = row.value(c);
+            switch (value.typeId()) {
+            case QMetaType::UnknownType: object.insert(m_columns[c], QJsonValue::Null); break;
+            case QMetaType::LongLong: object.insert(m_columns[c], value.toLongLong()); break;
+            case QMetaType::Double: object.insert(m_columns[c], value.toDouble()); break;
+            case QMetaType::QByteArray: object.insert(m_columns[c], QString::fromLatin1(value.toByteArray().toHex())); break;
+            default: object.insert(m_columns[c], value.toString());
+            }
+        }
+        rows << object;
+    }
+    return QString::fromUtf8(QJsonDocument(rows).toJson(QJsonDocument::Indented));
+}
+
+QString ResultModel::toMarkdown() const {
+    auto escape = [](QString text) {
+        return text.replace('|', "\\|").replace("\r\n", "<br>").replace('\n', "<br>");
+    };
+    QStringList header, rule;
+    for (const auto &c : m_columns) {
+        header << escape(c);
+        rule << "---";
+    }
+    QStringList lines{"| " + header.join(" | ") + " |", "| " + rule.join(" | ") + " |"};
+    for (const auto &row : m_rows) {
+        QStringList fields;
+        for (int c = 0; c < m_columns.size(); ++c) {
+            const QVariant value = row.value(c);
+            fields << (value.isNull() ? QStringLiteral("NULL") : escape(value.typeId() == QMetaType::QByteArray
+                           ? QString::fromLatin1(value.toByteArray().toHex()) : fullText(value)));
+        }
+        lines << "| " + fields.join(" | ") + " |";
+    }
+    return lines.join('\n') + '\n';
+}
+
+QString ResultModel::toSqlInsert(const QString &table) const {
+    auto quote = [](QString name) { return '"' + name.replace('"', "\"\"") + '"'; };
+    QStringList columns;
+    for (const auto &c : m_columns)
+        columns << quote(c);
+    const QString head = "INSERT INTO " + quote(table.isEmpty() ? QStringLiteral("results") : table)
+                       + " (" + columns.join(", ") + ") VALUES (";
+    QStringList lines;
+    for (const auto &row : m_rows) {
+        QStringList values;
+        for (int c = 0; c < m_columns.size(); ++c)
+            values << sqlLiteral(row.value(c));
+        lines << head + values.join(", ") + ");";
+    }
+    return lines.join('\n') + (lines.isEmpty() ? "" : "\n");
+}
+
+QString ResultModel::format(const QString &format, const QString &table) const {
+    if (format == "json")
+        return toJson();
+    if (format == "markdown")
+        return toMarkdown();
+    if (format == "sql")
+        return toSqlInsert(table);
+    return toCsv();
 }
 
 QString ResultModel::toCsv() const {

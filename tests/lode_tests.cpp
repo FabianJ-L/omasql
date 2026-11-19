@@ -1,5 +1,7 @@
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -16,7 +18,7 @@ class FakePicker : public FilePicker {
 public:
     QString next;
     void openDatabase(const QString &) override { emit picked(next); }
-    void saveCsv(const QString &, const QString &) override { emit picked(next); }
+    void saveFile(const QString &, const QString &, const QString &, const QString &) override { emit picked(next); }
 };
 
 class LodeTests : public QObject {
@@ -71,6 +73,15 @@ private slots:
         QCOMPARE(aliases.value("o"), QString("orders"));
         QCOMPARE(aliases.value("c"), QString("Customers"));
         QCOMPARE(aliases.value("orders"), QString("orders"));
+    }
+
+    void findsTablesAfterColumnLists()
+    {
+        const QStringList tables{"orders", "customers"};
+        QCOMPARE(SqlText::referencedTables("select id, total from orders", tables), QStringList{"orders"});
+        QCOMPARE(SqlText::referencedTables("select a, b from orders o join customers c on c.id = o.customer", tables),
+                 QStringList({"orders", "customers"}));
+        QCOMPARE(SqlText::aliases("select x, y from orders o", tables).value("o"), QString("orders"));
     }
 
     void spotsDestructiveStatements()
@@ -246,6 +257,78 @@ private slots:
         QFile file(picker.next);
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), QByteArray("a,b,c\r\n1,\"x,y\",\r\n"));
+    }
+
+    void filtersAndFormatsResults()
+    {
+        ResultModel model;
+        model.setResult({"id", "name", "data"}, {"INTEGER", "TEXT", "BLOB"},
+                        {{QVariant::fromValue<qint64>(1), QString("Ada Lovelace"), QByteArray::fromHex("00ff")},
+                         {QVariant::fromValue<qint64>(2), QString("it's, \"quoted\""), QVariant()},
+                         {QVariant::fromValue<qint64>(3), QString("Alan Turing"), QVariant()}});
+        model.setFilter("ada");
+        QCOMPARE(model.rowTotal(), 1);
+        QCOMPARE(model.totalRows(), 3);
+        model.setFilter("a  TURING"); // every word, any column, any case
+        QCOMPARE(model.cellText(0, 0), QString("3"));
+        model.setFilter("null");
+        QCOMPARE(model.rowTotal(), 2);
+        model.sortBy(0);
+        model.sortBy(0); // descending, and still filtered
+        QCOMPARE(model.cellText(0, 0), QString("3"));
+        model.setFilter("");
+        QCOMPARE(model.rowTotal(), 3);
+        QCOMPARE(model.rangeText(0, 0, 1, 1), QString("3\tAlan Turing\n2\tit's, \"quoted\""));
+
+        model.sortBy(0); // back to ascending
+        QCOMPARE(model.toSqlInsert("people").section('\n', 0, 1),
+                 QString("INSERT INTO \"people\" (\"id\", \"name\", \"data\") VALUES (1, 'Ada Lovelace', X'00ff');\n"
+                         "INSERT INTO \"people\" (\"id\", \"name\", \"data\") VALUES (2, 'it''s, \"quoted\"', NULL);"));
+        const auto json = QJsonDocument::fromJson(model.toJson().toUtf8()).array();
+        QCOMPARE(json.size(), 3);
+        QCOMPARE(json[0].toObject().value("id").toInteger(), 1);
+        QVERIFY(json[1].toObject().value("data").isNull());
+        QCOMPARE(model.toMarkdown().section('\n', 0, 2),
+                 QString("| id | name | data |\n| --- | --- | --- |\n| 1 | Ada Lovelace | 00ff |"));
+        QCOMPARE(ResultModel::sqlLiteral(2.0), QString("2.0"));
+    }
+
+    void followsForeignKeysAndExplains()
+    {
+        QTemporaryDir dir;
+        Backend backend(nullptr, dir.filePath("state"));
+        QVERIFY(backend.openDatabase(":memory:"));
+        QSignalSpy finished(&backend, &Backend::queryFinished);
+        backend.run("create table customers (id integer primary key, name text);"
+                    "create table orders (id integer primary key, customer integer references customers, total real);"
+                    "insert into customers values (7, 'Grace');"
+                    "insert into orders values (1, 7, 9.5)");
+        QVERIFY(finished.wait());
+
+        backend.preview("orders");
+        QVERIFY(finished.wait());
+        QCOMPARE(backend.resultTable(), QString("orders"));
+        QCOMPARE(backend.referenceOf("customer"), QString("customers"));
+        backend.followReference(0, 1);
+        QVERIFY(finished.wait());
+        QCOMPARE(backend.resultTable(), QString("customers"));
+        QCOMPARE(backend.results()->cellText(0, 1), QString("Grace"));
+
+        // A SELECT over one table counts as that table; a computed column doesn't.
+        backend.run("select id, customer from orders");
+        QVERIFY(finished.wait());
+        QCOMPARE(backend.resultTable(), QString("orders"));
+        backend.run("select count(*) from orders");
+        QVERIFY(finished.wait());
+        QCOMPARE(backend.resultTable(), QString());
+
+        backend.explain("select * from orders where customer = 7; delete from orders");
+        QVERIFY(finished.wait());
+        QCOMPARE(backend.results()->columnTotal(), 1);
+        QVERIFY(backend.results()->cellText(0, 0).contains("orders"));
+        backend.run("select count(*) from orders");
+        QVERIFY(finished.wait());
+        QCOMPARE(backend.results()->cellText(0, 0), QString("1")); // the DELETE never ran
     }
 
     void themeFallsBack()

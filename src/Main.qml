@@ -46,6 +46,8 @@ ApplicationWindow {
 
     Shortcut { sequences: ["Ctrl+Return", "Ctrl+Enter"]; context: Qt.ApplicationShortcut; enabled: backend.open; onActivated: editor.runCurrent() }
     Shortcut { sequences: ["Ctrl+Shift+Return", "Ctrl+Shift+Enter"]; context: Qt.ApplicationShortcut; enabled: backend.open; onActivated: editor.runAll() }
+    Shortcut { sequence: "Ctrl+Shift+E"; context: Qt.ApplicationShortcut; enabled: backend.open; onActivated: editor.explainCurrent() }
+    Shortcut { sequence: "Ctrl+F"; context: Qt.ApplicationShortcut; enabled: backend.hasResults; onActivated: results.focusFilter() }
     Shortcut { sequence: "Esc"; context: Qt.ApplicationShortcut; onActivated: win.handleEscape() }
     Shortcut { sequence: "Ctrl+O"; context: Qt.ApplicationShortcut; onActivated: backend.chooseDatabase() }
     Shortcut { sequence: "Ctrl+W"; context: Qt.ApplicationShortcut; enabled: backend.open; onActivated: { editor.saveNow(); backend.closeDatabase() } }
@@ -83,6 +85,7 @@ ApplicationWindow {
             TopBar {
                 Layout.fillWidth: true
                 onRunClicked: editor.runCurrent()
+                onExplainClicked: editor.explainCurrent()
                 onHelpClicked: win.helpVisible = !win.helpVisible
                 onHistoryClicked: history.open()
             }
