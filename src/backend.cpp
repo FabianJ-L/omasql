@@ -28,11 +28,12 @@ QString defaultStateDirectory() {
     QString base = qEnvironmentVariable("XDG_STATE_HOME");
     if (base.isEmpty())
         base = QDir::homePath() + "/.local/state";
-    // The app was called Lode before; its history, recent files, and drafts
-    // move over the first time it starts under the new name.
-    const QString directory = base + "/sqlite-lens", previous = base + "/lode";
-    if (!QFileInfo::exists(directory) && QFileInfo(previous).isDir())
-        QDir().rename(previous, directory);
+    // The app was called Lode, then SQLite Lens; its history, recent files,
+    // and drafts move over the first time it starts under the new name.
+    const QString directory = base + "/omasql";
+    for (const char *previous : {"/sqlite-lens", "/lode"})
+        if (!QFileInfo::exists(directory) && QFileInfo(base + previous).isDir())
+            QDir().rename(base + previous, directory);
     return directory;
 }
 

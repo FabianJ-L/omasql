@@ -21,7 +21,7 @@ public:
     void saveFile(const QString &, const QString &, const QString &, const QString &) override { emit picked(next); }
 };
 
-class LensTests : public QObject {
+class OmasqlTests : public QObject {
     Q_OBJECT
 
 private slots:
@@ -342,7 +342,7 @@ private slots:
             QCOMPARE(backend.recent().size(), 1);
         }
         qunsetenv("XDG_STATE_HOME");
-        QVERIFY(QFileInfo::exists(dir.path() + "/sqlite-lens/recent.json"));
+        QVERIFY(QFileInfo::exists(dir.path() + "/omasql/recent.json"));
         QVERIFY(!QFileInfo::exists(dir.path() + "/lode"));
     }
 
@@ -421,5 +421,5 @@ private:
     }
 };
 
-QTEST_MAIN(LensTests)
-#include "lens_tests.moc"
+QTEST_MAIN(OmasqlTests)
+#include "omasql_tests.moc"

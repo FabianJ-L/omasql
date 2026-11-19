@@ -1,4 +1,4 @@
-// SQLite Lens — a light SQLite client: write queries with completion, browse the
+// Omasql — a light SQLite client: write queries with completion, browse the
 // schema, and read results without leaving the keyboard.
 
 #include <QCommandLineParser>
@@ -18,13 +18,13 @@
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
-    app.setApplicationName("sqlite-lens");
-    app.setApplicationVersion("0.2.0");
+    app.setApplicationName("omasql");
+    app.setApplicationVersion("0.3.0");
 
-    // Matches the window to sqlite-lens.desktop, so the compositor (Wayland app_id)
+    // Matches the window to omasql.desktop, so the compositor (Wayland app_id)
     // and the launcher pick up the installed icon.
-    app.setDesktopFileName("sqlite-lens");
-    app.setWindowIcon(QIcon::fromTheme("sqlite-lens"));
+    app.setDesktopFileName("omasql");
+    app.setWindowIcon(QIcon::fromTheme("omasql"));
 
     QQuickStyle::setStyle("Material");
 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     parser.addPositionalArgument("database", QCoreApplication::translate("main", "The SQLite file to open."));
     parser.process(app);
 
-    qmlRegisterType<SqlHighlighter>("Lens", 1, 0, "SqlHighlighter");
+    qmlRegisterType<SqlHighlighter>("Omasql", 1, 0, "SqlHighlighter");
 
     Theme theme;
     PortalFilePicker picker;

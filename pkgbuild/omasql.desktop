@@ -1,12 +1,13 @@
 [Desktop Entry]
 Type=Application
-Name=SQLite Lens
+Name=Omasql
+GenericName=SQLite Database Browser
 Comment=Query and browse SQLite databases
 Comment[de]=SQLite-Datenbanken abfragen und durchsehen
-Exec=sqlite-lens %f
-Icon=sqlite-lens
+Exec=omasql %f
+Icon=omasql
 Terminal=false
 Categories=Development;Database;
 MimeType=application/vnd.sqlite3;application/x-sqlite3;
-Keywords=sqlite;sql;database;query;
-StartupWMClass=sqlite-lens
+Keywords=sqlite;sql;database;query;db;browser;table;
+StartupWMClass=omasql

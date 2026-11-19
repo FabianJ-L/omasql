@@ -1,7 +1,7 @@
 QT += core gui qml quick quickcontrols2 dbus concurrent
 
 CONFIG += c++17 release
-TARGET = sqlite-lens
+TARGET = omasql
 TEMPLATE = app
 LIBS += -lsqlite3
 

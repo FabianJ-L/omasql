@@ -1,10 +1,39 @@
-# SQLite Lens
+<p align="center"><img src="pkgbuild/omasql.svg" width="96" alt="Omasql icon"></p>
 
-A light SQLite client for Omarchy: write queries with completion, browse the
-schema, and read results without leaving the keyboard. It follows the Omarchy
-theme and language live.
+# Omasql — a fast SQLite GUI client for Linux
 
-![SQLite Lens showing a products table with the row inspector open](docs/screenshot.png)
+**Omasql** is a light, keyboard-first SQLite database browser and SQL editor
+for Linux. Write queries with autocomplete, browse tables and the schema, and
+read results without leaving the keyboard. Built with Qt 6 and C++, made for
+[Omarchy](https://omarchy.org) and Hyprland: it follows the Omarchy theme and
+language live, and runs on any Wayland or X11 desktop with Qt 6.
+
+Think DB Browser for SQLite or TablePlus, but small, fast to start, and
+driven from the keyboard.
+
+![Omasql: SQL editor with autocomplete, schema browser, results grid, and row inspector](docs/screenshot.png)
+
+## Install
+
+**Arch Linux / Omarchy** (AUR):
+
+```sh
+yay -S omasql
+```
+
+Or download `omasql-*.pkg.tar.zst` from the
+[latest release](https://github.com/FabianJ-L/omasql/releases/latest) and run
+`sudo pacman -U omasql-*.pkg.tar.zst`.
+
+**From source** (needs `qt6-base`, `qt6-declarative`, `qt6-wayland`, `sqlite`):
+
+```sh
+git clone https://github.com/FabianJ-L/omasql
+cd omasql
+bin/build && build/omasql some.db
+```
+
+## Features
 
 - **Editor** with SQL highlighting, line numbers, auto-indent, and completion
   as you type: tables after `FROM`/`JOIN`, columns of the tables in the
@@ -62,14 +91,18 @@ theme and language live.
 Typing goes to the editor, so the single-key shortcuts other Omarchy apps use
 (`Q`, Space) are on Ctrl here.
 
-## Build
+## Develop
 
 ```sh
-bin/build                 # build/sqlite-lens
-build/sqlite-lens some.db # open a database (a new path creates one)
+bin/build                 # build/omasql
+build/omasql some.db      # open a database (a new path creates one)
 bin/test                  # run the tests offscreen
 bin/install               # package and install, so it shows in the launcher
 ```
 
 Needs `qt6-base`, `qt6-declarative`, `qt6-wayland`, and `sqlite`.
-History, recent files, and drafts live in `~/.local/state/sqlite-lens/`.
+History, recent files, and drafts live in `~/.local/state/omasql/`.
+
+## License
+
+MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

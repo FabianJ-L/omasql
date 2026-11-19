@@ -5,7 +5,7 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 mkdir -p "$ROOT/build"
 cd "$ROOT/build"
 
-qmake6 "$ROOT/sqlite-lens.pro"
+qmake6 "$ROOT/omasql.pro"
 make -j"$(nproc)"
 
-echo "Built $ROOT/build/sqlite-lens"
+echo "Built $ROOT/build/omasql"

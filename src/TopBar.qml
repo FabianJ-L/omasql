@@ -34,7 +34,7 @@ Rectangle {
         }
 
         Label {
-            text: backend.open ? backend.databaseName : "SQLite Lens"
+            text: backend.open ? backend.databaseName : "Omasql"
             font.pixelSize: 15
             font.weight: Font.DemiBold
             color: theme.colors.brightForeground
