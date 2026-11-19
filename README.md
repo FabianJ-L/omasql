@@ -15,15 +15,12 @@ driven from the keyboard.
 
 ## Install
 
-**Arch Linux / Omarchy** (AUR):
+**Arch Linux / Omarchy**: download `omasql-*.pkg.tar.zst` from the
+[latest release](https://github.com/FabianJ-L/omasql/releases/latest), then
 
 ```sh
-yay -S omasql
+sudo pacman -U omasql-*.pkg.tar.zst
 ```
-
-Or download `omasql-*.pkg.tar.zst` from the
-[latest release](https://github.com/FabianJ-L/omasql/releases/latest) and run
-`sudo pacman -U omasql-*.pkg.tar.zst`.
 
 **From source** (needs `qt6-base`, `qt6-declarative`, `qt6-wayland`, `sqlite`):
 
