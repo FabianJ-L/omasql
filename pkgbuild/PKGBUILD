@@ -1,4 +1,4 @@
-pkgname=lode
+pkgname=sqlite-lens
 pkgver=0.1.0
 pkgrel=1
 pkgdesc='A light SQLite client with completion, a schema browser, and a row inspector'
@@ -16,8 +16,8 @@ build() {
 
 package() {
   cd "$startdir/.."
-  install -Dm755 build/lode "$pkgdir/usr/bin/lode"
+  install -Dm755 build/sqlite-lens "$pkgdir/usr/bin/sqlite-lens"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-  install -Dm644 "$startdir/lode.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/lode.svg"
-  install -Dm644 "$startdir/lode.desktop" "$pkgdir/usr/share/applications/lode.desktop"
+  install -Dm644 "$startdir/sqlite-lens.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/sqlite-lens.svg"
+  install -Dm644 "$startdir/sqlite-lens.desktop" "$pkgdir/usr/share/applications/sqlite-lens.desktop"
 }

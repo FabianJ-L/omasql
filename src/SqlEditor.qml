@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
-import Lode
+import Lens
 
 // The SQL editor: highlighting, line numbers, completion as you type, and
 // running the statement under the cursor.

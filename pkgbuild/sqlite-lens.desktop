@@ -1,12 +1,12 @@
 [Desktop Entry]
 Type=Application
-Name=Lode
+Name=SQLite Lens
 Comment=Query and browse SQLite databases
 Comment[de]=SQLite-Datenbanken abfragen und durchsehen
-Exec=lode %f
-Icon=lode
+Exec=sqlite-lens %f
+Icon=sqlite-lens
 Terminal=false
 Categories=Development;Database;
 MimeType=application/vnd.sqlite3;application/x-sqlite3;
 Keywords=sqlite;sql;database;query;
-StartupWMClass=lode
+StartupWMClass=sqlite-lens

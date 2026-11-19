@@ -10,7 +10,7 @@ ApplicationWindow {
     minimumWidth: 820
     minimumHeight: 520
     visible: true
-    title: backend.open ? backend.databaseName + " — Lode" : "Lode"
+    title: backend.open ? backend.databaseName + " — SQLite Lens" : "SQLite Lens"
     color: theme.colors.background
 
     Material.theme: Material.Dark

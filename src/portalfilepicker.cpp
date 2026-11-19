@@ -94,7 +94,7 @@ void PortalFilePicker::request(const QString &method, const QString &title, QVar
 
     // Subscribe to the Response before calling, at the path the portal will
     // use for this token, so a fast answer isn't missed.
-    const QString token = QString("lode%1_%2").arg(++m_counter).arg(QRandomGenerator::global()->generate());
+    const QString token = QString("lens%1_%2").arg(++m_counter).arg(QRandomGenerator::global()->generate());
     options["handle_token"] = token;
     const QString sender = bus.baseService().mid(1).replace('.', '_');
     listen(QString("/org/freedesktop/portal/desktop/request/%1/%2").arg(sender, token));

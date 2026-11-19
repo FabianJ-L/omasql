@@ -21,7 +21,7 @@ public:
     void saveFile(const QString &, const QString &, const QString &, const QString &) override { emit picked(next); }
 };
 
-class LodeTests : public QObject {
+class LensTests : public QObject {
     Q_OBJECT
 
 private slots:
@@ -331,6 +331,21 @@ private slots:
         QCOMPARE(backend.results()->cellText(0, 0), QString("1")); // the DELETE never ran
     }
 
+    void movesStateFromTheOldName()
+    {
+        QTemporaryDir dir;
+        QDir(dir.path()).mkpath("lode");
+        write(dir.path() + "/lode/recent.json", "[\"/tmp/a.db\"]");
+        qputenv("XDG_STATE_HOME", dir.path().toUtf8());
+        {
+            Backend backend(nullptr);
+            QCOMPARE(backend.recent().size(), 1);
+        }
+        qunsetenv("XDG_STATE_HOME");
+        QVERIFY(QFileInfo::exists(dir.path() + "/sqlite-lens/recent.json"));
+        QVERIFY(!QFileInfo::exists(dir.path() + "/lode"));
+    }
+
     void themeFallsBack()
     {
         QTemporaryDir dir;
@@ -406,5 +421,5 @@ private:
     }
 };
 
-QTEST_MAIN(LodeTests)
-#include "lode_tests.moc"
+QTEST_MAIN(LensTests)
+#include "lens_tests.moc"
