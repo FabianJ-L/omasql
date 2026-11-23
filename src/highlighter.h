@@ -29,6 +29,15 @@ public:
     QStringList tables() const { return m_tableList; }
     void setTables(const QStringList &tables);
 
+    // Replaces [from, to) with text as a single undo step, so an edit made of
+    // a removal and an insertion (a completion, a comment toggle, an AI fix)
+    // goes back with one Ctrl+Z.
+    Q_INVOKABLE void replace(int from, int to, const QString &text);
+    // Forgets the undo history, so Ctrl+Z can't bring back another
+    // database's draft.
+    Q_INVOKABLE void clearUndo();
+    static void replaceAsOneStep(QTextDocument *document, int from, int to, const QString &text);
+
 signals:
     void textDocumentChanged();
     void changed();

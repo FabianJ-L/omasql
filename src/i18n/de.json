@@ -96,7 +96,7 @@
   "The file dialog returned no local file.": "Der Dateidialog hat keine lokale Datei geliefert.",
   "The query failed": "Die Abfrage ist fehlgeschlagen",
   "The SQLite file to open.": "Die zu öffnende SQLite-Datei.",
-  "Undo, redo": "Rückgängig, wiederholen",
+  "Undo, redo (Ctrl+Shift+Z redoes too)": "Rückgängig, wiederholen (auch Strg+Umschalt+Z)",
   "view": "View",
   "Write SQL here. Ctrl+Enter runs the statement under the cursor, Ctrl+Space suggests names.": "SQL hier schreiben. Strg+Enter führt die Anweisung unter dem Cursor aus, Strg+Leertaste schlägt Namen vor.",
   "… %1 more": "… %1 mehr"

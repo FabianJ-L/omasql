@@ -69,7 +69,7 @@ bin/build && build/omasql some.db
 | Tab | Insert a suggestion (Enter too, once picked with the arrows) |
 | Ctrl+/ | Comment or uncomment lines |
 | Tab / Shift+Tab | Indent or outdent lines |
-| Ctrl+Z / Ctrl+Shift+Z | Undo, redo |
+| Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) | Undo, redo; completions and comment toggles undo in one step |
 | Ctrl+H | Query history |
 | Ctrl+K | Filter tables and columns |
 | Ctrl+1 / 2 / 3 | Focus tables, editor, results |

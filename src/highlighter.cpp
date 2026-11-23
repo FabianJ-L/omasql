@@ -3,6 +3,8 @@
 #include "sqltext.h"
 
 #include <QTextCharFormat>
+#include <QTextCursor>
+#include <QTextDocument>
 
 namespace {
 enum State { Normal = -1, InComment = 1, InString = 2, InQuoted = 3 };
@@ -38,6 +40,29 @@ void SqlHighlighter::setTables(const QStringList &tables) {
     for (const auto &t : tables)
         m_tables.insert(t.toLower());
     emit changed();
+}
+
+void SqlHighlighter::replaceAsOneStep(QTextDocument *document, int from, int to, const QString &text) {
+    if (!document)
+        return;
+    const int end = document->characterCount() - 1; // without the final paragraph separator
+    from = qBound(0, from, end);
+    to = qBound(from, to, end);
+    QTextCursor cursor(document);
+    cursor.beginEditBlock();
+    cursor.setPosition(from);
+    cursor.setPosition(to, QTextCursor::KeepAnchor);
+    cursor.insertText(text);
+    cursor.endEditBlock();
+}
+
+void SqlHighlighter::replace(int from, int to, const QString &text) {
+    replaceAsOneStep(document(), from, to, text);
+}
+
+void SqlHighlighter::clearUndo() {
+    if (document())
+        document()->clearUndoRedoStacks();
 }
 
 void SqlHighlighter::highlightBlock(const QString &text) {

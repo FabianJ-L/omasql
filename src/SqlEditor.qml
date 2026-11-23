@@ -27,6 +27,7 @@ Rectangle {
         area.text = text
         area.cursorPosition = text.length
         previousLength = text.length
+        highlighter.clearUndo()
         loading = false
         errorLine = -1
         hideCompletion()
@@ -40,17 +41,15 @@ Rectangle {
     function focusEditor() { area.forceActiveFocus() }
     function insertText(text) {
         if (text.length > 0) {
-            if (area.selectionEnd > area.selectionStart)
-                area.remove(area.selectionStart, area.selectionEnd)
-            const at = area.cursorPosition
-            area.insert(at, text)
+            const at = area.selectionEnd > area.selectionStart ? area.selectionStart : area.cursorPosition
+            const to = area.selectionEnd > area.selectionStart ? area.selectionEnd : at
+            highlighter.replace(at, to, text)
             area.cursorPosition = at + text.length
         }
         area.forceActiveFocus()
     }
     function replaceAll(text) {
-        area.remove(0, area.text.length)
-        area.insert(0, text)
+        highlighter.replace(0, area.text.length, text)
         area.cursorPosition = text.length
         area.forceActiveFocus()
     }
@@ -113,8 +112,7 @@ Rectangle {
         if (!item)
             return
         const at = completionStart
-        area.remove(at, area.cursorPosition)
-        area.insert(at, item.insert)
+        highlighter.replace(at, area.cursorPosition, item.insert)
         area.cursorPosition = at + item.insert.length
         hideCompletion()
     }
@@ -148,8 +146,7 @@ Rectangle {
         const after = fn(before.split("\n")).join("\n")
         if (after === before)
             return
-        area.remove(from, to)
-        area.insert(from, after)
+        highlighter.replace(from, to, after)
         if (hadSelection)
             area.select(from, from + after.length)
         else
@@ -177,12 +174,12 @@ Rectangle {
     }
     function newline() {
         const text = area.text
-        if (area.selectionEnd > area.selectionStart)
-            area.remove(area.selectionStart, area.selectionEnd)
-        const position = area.cursorPosition
+        const hadSelection = area.selectionEnd > area.selectionStart
+        const position = hadSelection ? area.selectionStart : area.cursorPosition
+        const end = hadSelection ? area.selectionEnd : position
         const lineStart = text.lastIndexOf("\n", position - 1) + 1
-        const indentation = area.text.substring(lineStart, position).match(/^[ \t]*/)[0]
-        area.insert(position, "\n" + indentation)
+        const indentation = text.substring(lineStart, position).match(/^[ \t]*/)[0]
+        highlighter.replace(position, end, "\n" + indentation)
         area.cursorPosition = position + 1 + indentation.length
     }
     function lineOf(position) {
@@ -391,6 +388,10 @@ Rectangle {
                 if (ctrl && event.key === Qt.Key_Space) {
                     root.requestCompletion(true)
                     event.accepted = true
+                } else if ((ctrl && !shift && event.key === Qt.Key_Y) || (ctrl && shift && event.key === Qt.Key_Z)) {
+                    // Both redo keys, whatever the platform's key map binds.
+                    area.redo()
+                    event.accepted = true
                 } else if (ctrl && event.key === Qt.Key_Slash) {
                     root.toggleComment()
                     event.accepted = true
@@ -407,6 +408,7 @@ Rectangle {
             }
 
             SqlHighlighter {
+                id: highlighter
                 textDocument: area.textDocument
                 tables: backend.tableNames
                 keywordColor: theme.colors.blue

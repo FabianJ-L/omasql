@@ -4,11 +4,13 @@
 #include <QJsonObject>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTextDocument>
 #include <QtTest>
 
 #include "backend.h"
 #include "database.h"
 #include "filepicker.h"
+#include "highlighter.h"
 #include "sqltext.h"
 #include "theme.h"
 #include "translator.h"
@@ -329,6 +331,34 @@ private slots:
         backend.run("select count(*) from orders");
         QVERIFY(finished.wait());
         QCOMPARE(backend.results()->cellText(0, 0), QString("1")); // the DELETE never ran
+    }
+
+    void undoesAnEditInOneStep()
+    {
+        QTextDocument document;
+        document.setPlainText("selct name from user");
+        document.clearUndoRedoStacks();
+
+        // A completion: the typed word out, the chosen one in.
+        SqlHighlighter::replaceAsOneStep(&document, 0, 5, "SELECT");
+        QCOMPARE(document.toPlainText(), QString("SELECT name from user"));
+        // A comment toggle over the whole line.
+        SqlHighlighter::replaceAsOneStep(&document, 0, 21, "-- SELECT name from user");
+        QCOMPARE(document.toPlainText(), QString("-- SELECT name from user"));
+
+        document.undo();
+        QCOMPARE(document.toPlainText(), QString("SELECT name from user"));
+        document.undo();
+        QCOMPARE(document.toPlainText(), QString("selct name from user"));
+        QVERIFY(!document.isUndoAvailable());
+        // One Ctrl+Z too many is not the end: redo brings it all back.
+        document.redo();
+        document.redo();
+        QCOMPARE(document.toPlainText(), QString("-- SELECT name from user"));
+
+        // Out-of-range positions are clamped, not a crash.
+        SqlHighlighter::replaceAsOneStep(&document, 50, 99, ";");
+        QCOMPARE(document.toPlainText(), QString("-- SELECT name from user;"));
     }
 
     void movesStateFromTheOldName()

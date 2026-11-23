@@ -20,7 +20,7 @@ Rectangle {
         ["Tab", qsTr("Insert a suggestion (Enter too, once picked with the arrows)")],
         ["Ctrl+/", qsTr("Comment or uncomment lines")],
         ["Tab / Shift+Tab", qsTr("Indent or outdent lines")],
-        ["Ctrl+Z / Ctrl+Shift+Z", qsTr("Undo, redo")],
+        ["Ctrl+Z / Ctrl+Y", qsTr("Undo, redo (Ctrl+Shift+Z redoes too)")],
         ["Ctrl+H", qsTr("Query history")],
         ["Ctrl+K", qsTr("Filter tables and columns")],
         ["Ctrl+1 / 2 / 3", qsTr("Focus tables, editor, results")],
