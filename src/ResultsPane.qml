@@ -183,6 +183,8 @@ Rectangle {
                 anchors.left: table.left
                 anchors.top: parent.top
                 clip: true
+                // Drag a header's right edge too, not only the grid's.
+                resizableColumns: true
                 visible: backend.hasResults
                 delegate: Rectangle {
                     id: head
@@ -284,6 +286,10 @@ Rectangle {
 
                 columnWidthProvider: column => {
                     backend.results.revision
+                    // A width someone dragged wins over the fitted one.
+                    const dragged = explicitColumnWidth(column)
+                    if (dragged >= 0)
+                        return Math.max(40, dragged)
                     const chars = backend.results.columnChars(column)
                     return Math.max(70, Math.min(440, chars * pane.charWidth + 34))
                 }
