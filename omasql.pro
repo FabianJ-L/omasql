@@ -6,6 +6,7 @@ TEMPLATE = app
 LIBS += -lsqlite3
 
 HEADERS += \
+    src/aifixer.h \
     src/backend.h \
     src/database.h \
     src/filepicker.h \
@@ -18,6 +19,7 @@ HEADERS += \
 
 SOURCES += \
     src/main.cpp \
+    src/aifixer.cpp \
     src/backend.cpp \
     src/database.cpp \
     src/highlighter.cpp \

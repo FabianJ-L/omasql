@@ -38,6 +38,12 @@ bin/build && build/omasql some.db
 - **Ctrl+Enter** runs the statement under the cursor (or the selection);
   queries run in the background and **Esc** cancels them. Errors put the
   cursor where SQLite found the problem.
+- **Fix with AI**: when a statement fails, the button beside the error (or
+  **Ctrl+.**) sends it, SQLite's error, and the schema to the coding agent the
+  system is set up with (`omarchy default agent`; Claude and Codex answer in
+  the background) and puts the corrected statement in its place, selected, for
+  you to check and run. Ctrl+Z takes it back. Other agents open in their own
+  window with the error. `OMASQL_AGENT` picks a different one.
 - **Schema browser** with row counts, primary and foreign keys, indexes, and
   a filter over tables and columns. Click a table to see its rows, click its
   arrow to open or close it, click a column to insert its name.
@@ -64,12 +70,13 @@ bin/build && build/omasql some.db
 | Ctrl+Enter | Run the statement under the cursor, or the selection |
 | Ctrl+Shift+Enter | Run everything in the editor |
 | Ctrl+Shift+E | Show the query plan for the statement under the cursor |
+| Ctrl+. | Let the AI agent fix the statement that failed |
 | Esc | Cancel a running query, close lists |
 | Ctrl+Space | Suggest tables, columns, keywords |
 | Tab | Insert a suggestion (Enter too, once picked with the arrows) |
 | Ctrl+/ | Comment or uncomment lines |
 | Tab / Shift+Tab | Indent or outdent lines |
-| Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) | Undo, redo; completions and comment toggles undo in one step |
+| Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) | Undo, redo; completions, comment toggles and AI fixes undo in one step |
 | Ctrl+H | Query history |
 | Ctrl+K | Filter tables and columns |
 | Ctrl+1 / 2 / 3 | Focus tables, editor, results |

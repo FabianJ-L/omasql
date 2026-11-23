@@ -146,6 +146,7 @@ bool Backend::openDatabase(const QString &rawPath) {
     m_results.clear();
     m_hasResults = false;
     m_lastSql.clear();
+    m_lastError.clear();
     m_resultTable.clear();
     setStatus({}, {});
     clearNotice();
@@ -171,6 +172,7 @@ void Backend::closeDatabase() {
     m_results.clear();
     m_hasResults = false;
     m_lastSql.clear();
+    m_lastError.clear();
     m_resultTable.clear();
     setStatus({}, {});
     emit schemaChanged();
@@ -318,6 +320,7 @@ void Backend::finished() {
     }
 
     QString text, kind = "ok";
+    m_lastError = r.ok || r.interrupted ? QString() : r.error;
     if (!r.ok) {
         text = r.interrupted ? tr("Cancelled") : r.error;
         kind = r.interrupted ? "warning" : "error";

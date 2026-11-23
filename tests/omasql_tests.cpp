@@ -7,6 +7,7 @@
 #include <QTextDocument>
 #include <QtTest>
 
+#include "aifixer.h"
 #include "backend.h"
 #include "database.h"
 #include "filepicker.h"
@@ -359,6 +360,82 @@ private slots:
         // Out-of-range positions are clamped, not a crash.
         SqlHighlighter::replaceAsOneStep(&document, 50, 99, ";");
         QCOMPARE(document.toPlainText(), QString("-- SELECT name from user;"));
+    }
+
+    void readsTheAgentsFix()
+    {
+        QString note;
+        QCOMPARE(AiFixer::extractSql("Here you go:\n```sql\nSELECT name FROM users;\n```\nThe table is users, not user.", &note),
+                 QString("SELECT name FROM users;"));
+        QCOMPARE(note, QString("The table is users, not user."));
+        QCOMPARE(AiFixer::extractSql("\x1b[1mselect 1\x1b[0m\n", &note), QString("select 1"));
+        QCOMPARE(note, QString());
+
+        // The fix takes the place of the old statement, whitespace and all.
+        QCOMPARE(AiFixer::fitInto("\n  selct 1;\n", "SELECT 1"), QString("\n  SELECT 1;\n"));
+        QCOMPARE(AiFixer::fitInto("selct 1", "SELECT 1;"), QString("SELECT 1"));
+    }
+
+    void promptsWithTheErrorAndSchema()
+    {
+        TableInfo users;
+        users.name = "users";
+        users.sql = "CREATE TABLE users (id integer primary key, name text)";
+        const QString prompt = AiFixer::prompt("selct name from user", "near \"selct\": syntax error", {users}, "de");
+        QVERIFY(prompt.contains("selct name from user"));
+        QVERIFY(prompt.contains("near \"selct\": syntax error"));
+        QVERIFY(prompt.contains("CREATE TABLE users"));
+        QVERIFY(prompt.contains("German"));
+    }
+
+    void fixesAFailedStatement()
+    {
+        QTemporaryDir dir;
+        // An agent that answers like a real one: the statement, then why.
+        const QString agent = dir.filePath("agent");
+        write(agent, "#!/bin/sh\ncat > \"$(dirname \"$0\")/prompt.txt\"\n"
+                     "printf '```sql\\nSELECT name FROM users\\n```\\nIt is users, not user.\\n'\n");
+        QFile::setPermissions(agent, QFile::permissions(agent) | QFileDevice::ExeOwner);
+
+        Backend backend(nullptr, dir.filePath("state"));
+        QVERIFY(backend.openDatabase(":memory:"));
+        QSignalSpy finished(&backend, &Backend::queryFinished);
+        backend.run("create table users (id integer primary key, name text)");
+        QVERIFY(finished.wait());
+        backend.run("select name from user;");
+        QVERIFY(finished.wait());
+        QVERIFY(backend.lastError().contains("no such table"));
+
+        AiFixer ai(&backend, agent);
+        QVERIFY(ai.available());
+        QSignalSpy fixed(&ai, &AiFixer::fixed);
+        ai.fix("select name from user;", backend.lastError(), "en");
+        QVERIFY(ai.busy());
+        QVERIFY(fixed.wait(10000));
+        QVERIFY(!ai.busy());
+        QCOMPARE(fixed.first().at(0).toString(), QString("select name from user;"));
+        QCOMPARE(fixed.first().at(1).toString(), QString("SELECT name FROM users;"));
+        QCOMPARE(fixed.first().at(2).toString(), QString("It is users, not user."));
+
+        QFile prompt(dir.filePath("prompt.txt"));
+        QVERIFY(prompt.open(QIODevice::ReadOnly));
+        const QString sent = QString::fromUtf8(prompt.readAll());
+        QVERIFY(sent.contains("no such table: user"));
+        QVERIFY(sent.contains("CREATE TABLE users"));
+    }
+
+    void reportsAFailingAgent()
+    {
+        QTemporaryDir dir;
+        const QString agent = dir.filePath("agent");
+        write(agent, "#!/bin/sh\necho 'not logged in' >&2\nexit 1\n");
+        QFile::setPermissions(agent, QFile::permissions(agent) | QFileDevice::ExeOwner);
+        AiFixer ai(nullptr, agent);
+        QSignalSpy failed(&ai, &AiFixer::failed);
+        ai.fix("selct 1", "syntax error", "en");
+        QVERIFY(failed.wait(10000));
+        QVERIFY(failed.first().at(0).toString().contains("not logged in"));
+        QVERIFY(!ai.busy());
     }
 
     void movesStateFromTheOldName()

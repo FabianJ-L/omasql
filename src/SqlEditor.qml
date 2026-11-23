@@ -13,6 +13,12 @@ Rectangle {
     property int previousLength: 0
     property int runBase: -1
     property int errorLine: -1
+    // The statement that last failed when run from here, for the AI to fix:
+    // where it was and what it said then.
+    property int fixStart: -1
+    property string fixSql: ""
+    property string runText: ""
+    readonly property bool canFix: fixSql.trim().length > 0
     property var completionItems: []
     property int completionStart: 0
     property bool completionVisible: false
@@ -30,6 +36,7 @@ Rectangle {
         highlighter.clearUndo()
         loading = false
         errorLine = -1
+        fixSql = ""
         hideCompletion()
         if (backend.open)
             area.forceActiveFocus()
@@ -54,6 +61,24 @@ Rectangle {
         area.forceActiveFocus()
     }
 
+    // Puts the AI's version where the failed statement was, as one undoable
+    // edit, and selects it for a look before it runs. False when the
+    // statement is no longer in the editor.
+    function applyFix(original, fixed) {
+        let at = area.text.substring(fixStart, fixStart + original.length) === original ? fixStart : -1
+        if (at < 0)
+            at = area.text.indexOf(original)
+        if (at < 0)
+            return false
+        highlighter.replace(at, at + original.length, fixed)
+        area.select(at, at + fixed.length)
+        errorLine = -1
+        fixSql = ""
+        hideCompletion()
+        area.forceActiveFocus()
+        return true
+    }
+
     function runCurrent() {
         let sql, start, end
         if (area.selectionEnd > area.selectionStart) {
@@ -69,6 +94,7 @@ Rectangle {
         if (sql.trim().length === 0)
             return
         runBase = start
+        runText = sql
         flash.show(start, end)
         win.requestRun(sql)
     }
@@ -81,12 +107,14 @@ Rectangle {
         if (sql.trim().length === 0 || !backend.open || backend.running)
             return
         runBase = -1
+        fixSql = ""
         backend.explain(sql)
     }
     function runAll() {
         if (area.text.trim().length === 0)
             return
         runBase = 0
+        runText = area.text
         flash.show(0, area.text.length)
         win.requestRun(area.text)
     }
@@ -190,6 +218,9 @@ Rectangle {
         target: backend
         // Only queries started from the editor point back into it.
         function onQueryFinished(ok, errorOffset) {
+            const failed = !ok && root.runBase >= 0 && backend.lastError.length > 0
+            root.fixStart = failed ? root.runBase : -1
+            root.fixSql = failed ? root.runText : ""
             if (!ok && errorOffset >= 0 && root.runBase >= 0) {
                 const position = Math.min(area.text.length, root.runBase + errorOffset)
                 area.cursorPosition = position

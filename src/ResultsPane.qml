@@ -13,6 +13,9 @@ Rectangle {
     readonly property int currentRow: table.currentRow
     readonly property int currentColumn: table.currentColumn
     readonly property bool hasSelection: backend.hasResults && table.currentRow >= 0
+    // The failed statement came from the editor and can go to the AI.
+    property bool canFix: false
+    signal fixRequested()
 
     function clearSelection() {
         selection.clear()
@@ -80,7 +83,7 @@ Rectangle {
                 spacing: 12
 
                 BusyIndicator {
-                    visible: backend.running
+                    visible: backend.running || ai.busy
                     running: visible
                     Layout.preferredWidth: 20
                     Layout.preferredHeight: 20
@@ -92,7 +95,16 @@ Rectangle {
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
-                    Layout.maximumWidth: pane.width * 0.6
+                    Layout.maximumWidth: pane.width * (fixButton.visible ? 0.45 : 0.6)
+                }
+                BarButton {
+                    id: fixButton
+                    visible: ai.available && (ai.busy || (pane.canFix && backend.statusKind === "error"))
+                    primary: !ai.busy
+                    text: ai.busy ? qsTr("%1 is fixing it…").arg(ai.agentLabel) : qsTr("Fix with %1").arg(ai.agentLabel)
+                    hint: ai.busy ? "Esc" : "Ctrl+."
+                    implicitHeight: 24
+                    onClicked: ai.busy ? ai.cancel() : pane.fixRequested()
                 }
                 Text {
                     Layout.fillWidth: true

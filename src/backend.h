@@ -25,6 +25,8 @@ class Backend : public QObject {
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(QString statusKind READ statusKind NOTIFY statusChanged)
     Q_PROPERTY(QString lastSql READ lastSql NOTIFY statusChanged)
+    // What SQLite said when the last query failed, else "".
+    Q_PROPERTY(QString lastError READ lastError NOTIFY statusChanged)
     // The table the shown rows come from, when they come from exactly one:
     // a table preview, a followed reference, or a SELECT over one table.
     Q_PROPERTY(QString resultTable READ resultTable NOTIFY statusChanged)
@@ -49,6 +51,7 @@ public:
     QString status() const { return m_status; }
     QString statusKind() const { return m_statusKind; }
     QString lastSql() const { return m_lastSql; }
+    QString lastError() const { return m_lastError; }
     QString resultTable() const { return m_resultTable; }
     QVariantList recent() const;
     QVariantList history() const { return m_history; }
@@ -84,6 +87,7 @@ public:
     Q_INVOKABLE void copyResults(const QString &format);
     Q_INVOKABLE void exportResults(const QString &format);
     Q_INVOKABLE void clearNotice();
+    Q_INVOKABLE void notify(const QString &notice) { setNotice(notice); }
 
     Q_INVOKABLE QString draft() const;
     Q_INVOKABLE void saveDraft(const QString &text);
@@ -117,7 +121,7 @@ private:
     ResultModel m_results;
     QFutureWatcher<QueryResult> m_watcher;
     bool m_hasResults = false;
-    QString m_status, m_statusKind, m_lastSql, m_notice;
+    QString m_status, m_statusKind, m_lastSql, m_lastError, m_notice;
     QString m_resultTable, m_runningTable, m_exportFormat;
     QStringList m_recent;
     QVariantList m_history;

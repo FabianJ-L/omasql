@@ -15,6 +15,7 @@ Rectangle {
         ["Ctrl+Enter", qsTr("Run the statement under the cursor, or the selection")],
         ["Ctrl+Shift+Enter", qsTr("Run everything in the editor")],
         ["Ctrl+Shift+E", qsTr("Show the query plan for the statement under the cursor")],
+        ["Ctrl+.", qsTr("Let the AI agent fix the statement that failed")],
         ["Esc", qsTr("Cancel a running query, close lists")],
         ["Ctrl+Space", qsTr("Suggest tables, columns, keywords")],
         ["Tab", qsTr("Insert a suggestion (Enter too, once picked with the arrows)")],

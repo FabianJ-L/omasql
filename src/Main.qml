@@ -36,8 +36,17 @@ ApplicationWindow {
         backend.run(sql)
     }
 
+    // Sends the statement that just failed, with SQLite's error and the
+    // schema, to the system's AI agent; the fix replaces it in the editor.
+    function fixWithAi() {
+        if (!ai.available || ai.busy || !editor.canFix || backend.lastError.length === 0)
+            return
+        ai.fix(editor.fixSql, backend.lastError, translator.language)
+    }
+
     function handleEscape() {
         if (helpVisible) helpVisible = false
+        else if (ai.busy) ai.cancel()
         else if (history.visible) history.close()
         else if (backend.running) backend.cancel()
         else if (backend.notice.length) backend.clearNotice()
@@ -47,6 +56,7 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+Return", "Ctrl+Enter"]; context: Qt.ApplicationShortcut; enabled: backend.open; onActivated: editor.runCurrent() }
     Shortcut { sequences: ["Ctrl+Shift+Return", "Ctrl+Shift+Enter"]; context: Qt.ApplicationShortcut; enabled: backend.open; onActivated: editor.runAll() }
     Shortcut { sequence: "Ctrl+Shift+E"; context: Qt.ApplicationShortcut; enabled: backend.open; onActivated: editor.explainCurrent() }
+    Shortcut { sequence: "Ctrl+."; context: Qt.ApplicationShortcut; enabled: backend.open && ai.available; onActivated: win.fixWithAi() }
     Shortcut { sequence: "Ctrl+F"; context: Qt.ApplicationShortcut; enabled: backend.hasResults; onActivated: results.focusFilter() }
     Shortcut { sequence: "Esc"; context: Qt.ApplicationShortcut; onActivated: win.handleEscape() }
     Shortcut { sequence: "Ctrl+O"; context: Qt.ApplicationShortcut; onActivated: backend.chooseDatabase() }
@@ -67,7 +77,21 @@ ApplicationWindow {
 
     Connections {
         target: backend
-        function onDatabaseChanged() { editor.load(backend.draft()) }
+        function onDatabaseChanged() { ai.cancel(); editor.load(backend.draft()) }
+    }
+    Connections {
+        target: ai
+        function onFixed(original, sql, note) {
+            if (!editor.applyFix(original, sql)) {
+                backend.copy(sql)
+                backend.notify(qsTr("The statement changed in the meantime, so the fix is on the clipboard"))
+                return
+            }
+            const how = qsTr("Ctrl+Enter runs it, Ctrl+Z undoes it")
+            backend.notify(note.length ? note + " · " + how : how)
+        }
+        function onFailed(message) { backend.notify(message) }
+        function onHandedOver(agent) { backend.notify(qsTr("Opened %1 with the error").arg(agent)) }
     }
     Component.onCompleted: if (backend.open) editor.load(backend.draft())
 
@@ -125,6 +149,8 @@ ApplicationWindow {
 
                     ResultsPane {
                         id: results
+                        canFix: editor.canFix
+                        onFixRequested: win.fixWithAi()
                         SplitView.fillHeight: true
                         SplitView.minimumHeight: 120
                     }
@@ -166,7 +192,7 @@ ApplicationWindow {
             TapHandler { onTapped: backend.clearNotice() }
             Timer {
                 running: noticeBar.visible
-                interval: 4000
+                interval: Math.max(4000, backend.notice.length * 70)
                 onTriggered: backend.clearNotice()
             }
         }

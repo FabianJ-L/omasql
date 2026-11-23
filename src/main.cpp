@@ -10,6 +10,7 @@
 #include <QUrl>
 #include <QtQml>
 
+#include "aifixer.h"
 #include "backend.h"
 #include "highlighter.h"
 #include "portalfilepicker.h"
@@ -19,7 +20,7 @@
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     app.setApplicationName("omasql");
-    app.setApplicationVersion("0.3.0");
+    app.setApplicationVersion("0.3.1");
 
     // Matches the window to omasql.desktop, so the compositor (Wayland app_id)
     // and the launcher pick up the installed icon.
@@ -45,6 +46,7 @@ int main(int argc, char *argv[]) {
     Theme theme;
     PortalFilePicker picker;
     Backend backend(&picker);
+    AiFixer ai(&backend);
     if (!parser.positionalArguments().isEmpty())
         backend.openDatabase(parser.positionalArguments().first());
 
@@ -53,6 +55,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("translator", &translator);
     engine.rootContext()->setContextProperty("theme", &theme);
     engine.rootContext()->setContextProperty("backend", &backend);
+    engine.rootContext()->setContextProperty("ai", &ai);
     engine.load(QUrl("qrc:/Main.qml"));
     if (engine.rootObjects().isEmpty())
         return 1;
