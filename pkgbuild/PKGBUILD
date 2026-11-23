@@ -1,5 +1,5 @@
 pkgname=omasql
-pkgver=0.3.1
+pkgver=0.4.0
 pkgrel=1
 pkgdesc='A light SQLite client with completion, a schema browser, and a row inspector'
 arch=('x86_64' 'aarch64')
