@@ -2,6 +2,8 @@
 
 # Omasql — a fast SQLite GUI client for Linux
 
+[![CI](https://github.com/FabianJ-L/omasql/actions/workflows/ci.yml/badge.svg)](https://github.com/FabianJ-L/omasql/actions/workflows/ci.yml)
+
 **Omasql** is a light, keyboard-first SQLite database browser and SQL editor
 for Linux. Write queries with autocomplete, browse tables and the schema, and
 read results without leaving the keyboard. Built with Qt 6 and C++, made for

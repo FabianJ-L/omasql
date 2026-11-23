@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    # Arch, like Omarchy: current Qt 6 and SQLite, as users build against.
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install dependencies
+        run: pacman -Syu --noconfirm --needed git gcc make qt6-base qt6-declarative qt6-wayland sqlite
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: bin/test
+      - name: Build the app
+        run: bin/build
