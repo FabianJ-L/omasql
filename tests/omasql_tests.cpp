@@ -362,6 +362,55 @@ private slots:
         QCOMPARE(document.toPlainText(), QString("-- SELECT name from user;"));
     }
 
+    void loadsMoreRows()
+    {
+        QTemporaryDir dir;
+        Backend backend(nullptr, dir.filePath("state"));
+        QVERIFY(backend.openDatabase(":memory:"));
+        QSignalSpy finished(&backend, &Backend::queryFinished);
+        const int total = Backend::MaxRows + 5;
+        backend.run(QString("create table n (i integer); with recursive c(x) as (select 1 union all select x + 1 from c where x < %1) insert into n select x from c").arg(total));
+        QVERIFY(finished.wait());
+        backend.run("select i from n order by i");
+        QVERIFY(finished.wait());
+        QCOMPARE(backend.results()->totalRows(), Backend::MaxRows);
+        QVERIFY(backend.canLoadMore());
+
+        // A filter and a sort survive; the new rows start after the old ones.
+        backend.results()->sortBy(0);
+        const int revision = backend.results()->revision();
+        QSignalSpy more(&backend, &Backend::moreLoaded);
+        backend.loadMore();
+        QVERIFY(more.wait());
+        QCOMPARE(more.first().at(0).toInt(), Backend::MaxRows);
+        QCOMPARE(backend.results()->totalRows(), total);
+        QCOMPARE(backend.results()->revision(), revision);
+        QCOMPARE(backend.results()->sortColumn(), 0);
+        QVERIFY(!backend.canLoadMore());
+
+        // A statement that writes never runs twice.
+        backend.run(QString("insert into n values (0); select * from n"));
+        QVERIFY(finished.wait());
+        QCOMPARE(backend.results()->totalRows(), Backend::MaxRows);
+        QVERIFY(!backend.canLoadMore());
+    }
+
+    void asksBeforeSendingToTheAgent()
+    {
+        QTemporaryDir dir;
+        {
+            AiFixer ai(nullptr, "claude", nullptr, dir.path());
+            QVERIFY(!ai.allowed());
+            QSignalSpy changed(&ai, &AiFixer::allowedChanged);
+            ai.allow();
+            QVERIFY(ai.allowed());
+            QCOMPARE(changed.size(), 1);
+        }
+        // Remembered for that agent, not for another.
+        QVERIFY(AiFixer(nullptr, "claude", nullptr, dir.path()).allowed());
+        QVERIFY(!AiFixer(nullptr, "codex", nullptr, dir.path()).allowed());
+    }
+
     void readsTheAgentsFix()
     {
         QString note;

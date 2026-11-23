@@ -19,10 +19,12 @@ class Backend;
 // other agent opens in its own window with the problem as its first prompt.
 class AiFixer : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool available READ available CONSTANT)
-    Q_PROPERTY(QString agent READ agent CONSTANT)
-    Q_PROPERTY(QString agentLabel READ agentLabel CONSTANT)
+    Q_PROPERTY(bool available READ available NOTIFY agentChanged)
+    Q_PROPERTY(QString agent READ agent NOTIFY agentChanged)
+    Q_PROPERTY(QString agentLabel READ agentLabel NOTIFY agentChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+    // The user agreed to send statements and the schema to this agent.
+    Q_PROPERTY(bool allowed READ allowed NOTIFY allowedChanged)
 
 public:
     struct Command {
@@ -32,21 +34,28 @@ public:
         bool replyInFile = false; // the reply is written to <dir>/reply.txt
     };
 
-    // agent overrides the system's default agent ("" asks the system).
-    explicit AiFixer(Backend *backend, const QString &agent = QString(), QObject *parent = nullptr);
+    // agent overrides the system's default agent ("" asks the system, in the
+    // background). Consent is remembered in stateDirectory ("" keeps it for
+    // this run only).
+    explicit AiFixer(Backend *backend, const QString &agent = QString(), QObject *parent = nullptr,
+                     const QString &stateDirectory = QString());
     ~AiFixer() override;
 
     bool available() const { return !m_agent.isEmpty(); }
     QString agent() const { return m_agent; }
     QString agentLabel() const;
     bool busy() const { return m_process != nullptr; }
+    bool allowed() const;
+    Q_INVOKABLE void allow();
 
     // sql is the statement as it stands in the editor, error what SQLite said
     // about it, language the UI language for the one-line explanation.
     Q_INVOKABLE void fix(const QString &sql, const QString &error, const QString &language);
     Q_INVOKABLE void cancel();
 
-    static QString defaultAgent();
+    // Without asking omarchy-default-agent: OMASQL_AGENT or the first
+    // headless agent installed.
+    static QString fallbackAgent();
     static bool headlessCommand(const QString &agent, const QString &replyFile, Command *command);
     static QString prompt(const QString &sql, const QString &error, const QList<TableInfo> &schema,
                           const QString &language);
@@ -58,6 +67,8 @@ public:
 
 signals:
     void busyChanged();
+    void agentChanged();
+    void allowedChanged();
     void fixed(const QString &original, const QString &sql, const QString &note);
     void failed(const QString &message);
     // An agent that needs a terminal was opened with the problem instead.
@@ -65,7 +76,9 @@ signals:
 
 private:
     void finished(int exitCode, QProcess::ExitStatus status);
+    void launch(const Command &command, const QString &text, const QProcessEnvironment &env);
     void stop();
+    QString consentPath() const;
 
     QPointer<Backend> m_backend;
     QString m_agent;
@@ -73,5 +86,7 @@ private:
     std::unique_ptr<QTemporaryDir> m_dir;
     QTimer m_timeout;
     QString m_original;
+    QString m_stateDirectory;
+    QStringList m_allowedThisRun;
     bool m_cancelled = false;
 };

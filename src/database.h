@@ -56,6 +56,9 @@ public:
 
     QList<TableInfo> schema() const;
     QueryResult execute(const QString &sql, int maxRows) const;
+    // True when every statement in sql only reads, so running it again (to
+    // fetch more rows) changes nothing. Not while execute() runs.
+    bool readOnly(const QString &sql) const;
     void interrupt() const;
 
 private:

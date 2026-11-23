@@ -198,6 +198,32 @@ QueryResult Database::execute(const QString &sql, int maxRows) const {
     return result;
 }
 
+bool Database::readOnly(const QString &sql) const {
+    if (!m_db)
+        return false;
+    const QByteArray utf8 = sql.toUtf8();
+    const char *tail = utf8.constData();
+    const char *end = tail + utf8.size();
+    bool any = false;
+    while (tail < end) {
+        sqlite3_stmt *stmt = nullptr;
+        const char *next = nullptr;
+        if (sqlite3_prepare_v2(m_db, tail, int(end - tail), &stmt, &next) != SQLITE_OK) {
+            sqlite3_finalize(stmt);
+            return false;
+        }
+        tail = next;
+        if (!stmt)
+            continue;
+        const bool reads = sqlite3_stmt_readonly(stmt);
+        sqlite3_finalize(stmt);
+        if (!reads)
+            return false;
+        any = true;
+    }
+    return any;
+}
+
 void Database::interrupt() const {
     if (m_db)
         sqlite3_interrupt(m_db);

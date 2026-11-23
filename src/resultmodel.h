@@ -25,6 +25,9 @@ public:
 
     void setResult(const QStringList &columns, const QStringList &types, const QList<QVariantList> &rows);
     void clear();
+    // The same query's rows again, more of them: keeps the columns, the
+    // sort, the filter and the revision, so the grid keeps its widths.
+    void setRows(const QList<QVariantList> &rows);
 
     int rowCount(const QModelIndex &parent = {}) const override;
     int columnCount(const QModelIndex &parent = {}) const override;
@@ -70,6 +73,8 @@ signals:
 private:
     QStringList m_columns, m_types;
     void applyFilter();
+
+    void sortRows();
 
     QList<QVariantList> m_all;  // every row the query returned, in sort order
     QList<QVariantList> m_rows; // the ones the filter lets through

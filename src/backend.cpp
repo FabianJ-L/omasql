@@ -250,17 +250,31 @@ void Backend::followReference(int row, int column) {
               + " = " + ResultModel::sqlLiteral(value), false, table);
 }
 
-void Backend::start(const QString &sql, bool rememberIt, const QString &table) {
+void Backend::start(const QString &sql, bool rememberIt, const QString &table, int rowLimit) {
     if (!isOpen() || running() || sql.trimmed().isEmpty())
         return;
     if (rememberIt)
         remember(sql.trimmed());
     m_runningTable = table;
     m_lastSql = sql.trimmed();
+    m_rowLimit = rowLimit;
+    // Asked now, while no query runs on the connection.
+    m_readOnly = m_db.readOnly(sql);
     setStatus(tr("Running…"), "running");
     const Database *db = &m_db;
-    m_watcher.setFuture(QtConcurrent::run([db, sql] { return db->execute(sql, MaxRows); }));
+    m_watcher.setFuture(QtConcurrent::run([db, sql, rowLimit] { return db->execute(sql, rowLimit); }));
     emit runningChanged();
+}
+
+void Backend::loadMore() {
+    if (!canLoadMore() || running())
+        return;
+    m_loadingMore = true;
+    m_shownBefore = m_results.totalRows();
+    const QString table = m_resultTable;
+    start(m_lastSql, false, table, m_rowLimit + MaxRows);
+    if (!running())
+        m_loadingMore = false;
 }
 
 void Backend::cancel() {
@@ -272,7 +286,14 @@ void Backend::waitForIdle() { m_watcher.waitForFinished(); }
 
 void Backend::finished() {
     const QueryResult r = m_watcher.result();
+    const bool more = std::exchange(m_loadingMore, false);
     emit runningChanged();
+    if (more && !r.ok) {
+        // Cancelled or failed: the rows shown are still the ones before.
+        m_rowLimit -= MaxRows;
+    } else {
+        m_truncated = r.ok && r.hasRows && r.truncated;
+    }
 
     if (r.hasRows) {
         QStringList columns = r.columns, types = r.types;
@@ -291,7 +312,13 @@ void Backend::finished() {
             types = {QString()};
             rows = plan;
         }
-        m_results.setResult(columns, types, rows);
+        // More rows of the same query keep the grid as it is: widths, sort, filter.
+        const bool same = more && columns.size() == m_results.columnTotal()
+                          && rows.size() >= m_shownBefore;
+        if (same)
+            m_results.setRows(rows);
+        else
+            m_results.setResult(columns, types, rows);
         m_hasResults = true;
         m_resultTable = m_runningTable;
         // A plain SELECT over one table counts as that table's rows when
@@ -327,7 +354,7 @@ void Backend::finished() {
     } else if (r.hasRows) {
         text = tr("%n rows", "", int(r.rows.size()));
         if (r.truncated)
-            text += " · " + tr("only the first %1 are shown").arg(QLocale().toString(MaxRows));
+            text += " · " + tr("only the first %1 are shown").arg(QLocale().toString(m_rowLimit));
     } else if (r.changes > 0) {
         text = tr("%n rows changed", "", int(r.changes));
     } else {
@@ -338,6 +365,8 @@ void Backend::finished() {
     // Any statement may have changed tables or row counts.
     refreshSchema();
     emit queryFinished(r.ok, r.errorOffset);
+    if (more && r.ok && r.hasRows)
+        emit moreLoaded(m_shownBefore);
 }
 
 QVariantMap Backend::completions(const QString &text, int position, bool forced) const {

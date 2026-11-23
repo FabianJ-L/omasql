@@ -47,8 +47,26 @@ QString lastLine(const QString &text) {
 
 } // namespace
 
-AiFixer::AiFixer(Backend *backend, const QString &agent, QObject *parent)
-    : QObject(parent), m_backend(backend), m_agent(agent.isEmpty() ? defaultAgent() : agent) {
+AiFixer::AiFixer(Backend *backend, const QString &agent, QObject *parent, const QString &stateDirectory)
+    : QObject(parent), m_backend(backend), m_agent(agent.isEmpty() ? fallbackAgent() : agent),
+      m_stateDirectory(stateDirectory) {
+    // Omarchy's choice wins over the fallback, once it answers; asked in the
+    // background so the window doesn't wait for it.
+    if (agent.isEmpty() && qEnvironmentVariable("OMASQL_AGENT").trimmed().isEmpty()
+        && !QStandardPaths::findExecutable("omarchy-default-agent").isEmpty()) {
+        auto *process = new QProcess(this);
+        connect(process, &QProcess::finished, this, [this, process](int code) {
+            const QString chosen = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
+            process->deleteLater();
+            if (code != 0 || chosen.isEmpty() || chosen == m_agent || busy())
+                return;
+            m_agent = chosen;
+            emit agentChanged();
+            emit allowedChanged();
+        });
+        connect(process, &QProcess::errorOccurred, process, &QObject::deleteLater);
+        process->start("omarchy-default-agent", {});
+    }
     m_timeout.setSingleShot(true);
     m_timeout.setInterval(TimeoutMs);
     connect(&m_timeout, &QTimer::timeout, this, [this] {
@@ -67,24 +85,45 @@ AiFixer::~AiFixer() {
 
 // OMASQL_AGENT picks one by hand (a name, or the path of a program that reads
 // the prompt on stdin and prints the reply); otherwise Omarchy's default
-// agent; otherwise the first agent installed that can answer headless.
-QString AiFixer::defaultAgent() {
+// agent (asked in the constructor); until it answers, the first agent
+// installed that can answer headless.
+QString AiFixer::fallbackAgent() {
     const QString forced = qEnvironmentVariable("OMASQL_AGENT").trimmed();
     if (!forced.isEmpty())
         return forced;
-    if (!QStandardPaths::findExecutable("omarchy-default-agent").isEmpty()) {
-        QProcess process;
-        process.start("omarchy-default-agent", {});
-        if (process.waitForFinished(3000) && process.exitCode() == 0) {
-            const QString agent = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
-            if (!agent.isEmpty())
-                return agent;
-        }
-    }
     for (const char *agent : {"claude", "codex", "opencode"})
         if (!findAgentProgram(agent).isEmpty())
             return agent;
     return {};
+}
+
+QString AiFixer::consentPath() const {
+    return m_stateDirectory.isEmpty() ? QString() : m_stateDirectory + "/ai-allowed.txt";
+}
+
+// Per agent: switching to another one asks again.
+bool AiFixer::allowed() const {
+    if (m_agent.isEmpty())
+        return false;
+    if (m_allowedThisRun.contains(m_agent))
+        return true;
+    QFile file(consentPath());
+    if (consentPath().isEmpty() || !file.open(QIODevice::ReadOnly))
+        return false;
+    return QString::fromUtf8(file.readAll()).split('\n').contains(m_agent);
+}
+
+void AiFixer::allow() {
+    if (m_agent.isEmpty() || allowed())
+        return;
+    m_allowedThisRun << m_agent;
+    if (!consentPath().isEmpty()) {
+        QDir().mkpath(m_stateDirectory);
+        QFile file(consentPath());
+        if (file.open(QIODevice::Append))
+            file.write((m_agent + "\n").toUtf8());
+    }
+    emit allowedChanged();
 }
 
 QString AiFixer::agentLabel() const {
@@ -222,23 +261,43 @@ void AiFixer::fix(const QString &sql, const QString &error, const QString &langu
 
     m_original = sql;
     m_cancelled = false;
-    m_process = new QProcess(this);
-    // Picks the account Omarchy's agent switcher selected, as omarchy-agent does.
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    // Picks the account Omarchy's agent switcher selected, as omarchy-agent
+    // does; asked in the background, then the agent starts.
+    const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     const QString homeVariable = m_agent == "claude" ? "CLAUDE_CONFIG_DIR" : m_agent == "codex" ? "CODEX_HOME" : "";
-    if (!homeVariable.isEmpty() && !env.contains(homeVariable)
-        && !QStandardPaths::findExecutable("omarchy-agent-account-home").isEmpty()) {
-        QProcess home;
-        home.start("omarchy-agent-account-home", {m_agent});
-        if (home.waitForFinished(3000) && home.exitCode() == 0) {
-            const QString path = QString::fromUtf8(home.readAllStandardOutput()).trimmed();
-            if (!path.isEmpty())
-                env.insert(homeVariable, path);
-        }
+    if (homeVariable.isEmpty() || env.contains(homeVariable)
+        || QStandardPaths::findExecutable("omarchy-agent-account-home").isEmpty()) {
+        launch(command, text, env);
+        return;
     }
+    m_process = new QProcess(this);
+    auto proceed = [this, command, text, env, homeVariable](const QString &home) {
+        QProcess *helper = std::exchange(m_process, nullptr);
+        helper->disconnect(this);
+        helper->deleteLater();
+        QProcessEnvironment agentEnv = env;
+        if (!home.isEmpty())
+            agentEnv.insert(homeVariable, home);
+        launch(command, text, agentEnv);
+    };
+    connect(m_process, &QProcess::finished, this, [this, proceed](int code) {
+        proceed(code == 0 ? QString::fromUtf8(m_process->readAllStandardOutput()).trimmed() : QString());
+    });
+    connect(m_process, &QProcess::errorOccurred, this, [proceed](QProcess::ProcessError e) {
+        if (e == QProcess::FailedToStart)
+            proceed({});
+    });
+    m_process->start("omarchy-agent-account-home", {m_agent});
+    m_timeout.start();
+    emit busyChanged();
+}
+
+void AiFixer::launch(const Command &command, const QString &text, const QProcessEnvironment &env) {
+    const bool wasBusy = busy();
+    m_process = new QProcess(this);
     m_process->setProcessEnvironment(env);
     // Nowhere near a project, so the agent has no files to wander into.
-    m_process->setWorkingDirectory(m_dir->isValid() ? m_dir->path() : QDir::tempPath());
+    m_process->setWorkingDirectory(m_dir && m_dir->isValid() ? m_dir->path() : QDir::tempPath());
     connect(m_process, &QProcess::finished, this, &AiFixer::finished);
     connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
         if (e == QProcess::FailedToStart) {
@@ -253,7 +312,8 @@ void AiFixer::fix(const QString &sql, const QString &error, const QString &langu
         m_process->write(text.toUtf8());
     m_process->closeWriteChannel();
     m_timeout.start();
-    emit busyChanged();
+    if (!wasBusy)
+        emit busyChanged();
 }
 
 void AiFixer::cancel() {

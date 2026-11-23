@@ -30,6 +30,10 @@ class Backend : public QObject {
     // The table the shown rows come from, when they come from exactly one:
     // a table preview, a followed reference, or a SELECT over one table.
     Q_PROPERTY(QString resultTable READ resultTable NOTIFY statusChanged)
+    // The shown rows stop at the row limit, and the query only reads, so it
+    // can run again for more.
+    Q_PROPERTY(bool canLoadMore READ canLoadMore NOTIFY statusChanged)
+    Q_PROPERTY(int rowBatch READ rowBatch CONSTANT)
     Q_PROPERTY(QVariantList recent READ recent NOTIFY recentChanged)
     Q_PROPERTY(QVariantList history READ history NOTIFY historyChanged)
     Q_PROPERTY(QString notice READ notice NOTIFY noticeChanged)
@@ -42,6 +46,7 @@ public:
 
     bool isOpen() const { return m_db.isOpen(); }
     QString databasePath() const { return m_db.path(); }
+    QString stateDirectory() const { return m_stateDirectory; }
     QString databaseName() const;
     QVariantList tables() const;
     QStringList tableNames() const;
@@ -53,6 +58,8 @@ public:
     QString lastSql() const { return m_lastSql; }
     QString lastError() const { return m_lastError; }
     QString resultTable() const { return m_resultTable; }
+    int rowBatch() const { return MaxRows; }
+    bool canLoadMore() const { return m_truncated && m_readOnly && m_hasResults; }
     QVariantList recent() const;
     QVariantList history() const { return m_history; }
     QString notice() const { return m_notice; }
@@ -87,6 +94,8 @@ public:
     Q_INVOKABLE void copyResults(const QString &format);
     Q_INVOKABLE void exportResults(const QString &format);
     Q_INVOKABLE void clearNotice();
+    // Runs the last query again with room for MaxRows more rows.
+    Q_INVOKABLE void loadMore();
     Q_INVOKABLE void notify(const QString &notice) { setNotice(notice); }
 
     Q_INVOKABLE QString draft() const;
@@ -97,13 +106,15 @@ signals:
     void schemaChanged();
     void runningChanged();
     void statusChanged();
+    // loadMore() finished; the new rows start at row first of the query's.
+    void moreLoaded(int first);
     void recentChanged();
     void historyChanged();
     void noticeChanged();
     void queryFinished(bool ok, int errorOffset);
 
 private:
-    void start(const QString &sql, bool remember, const QString &table = {});
+    void start(const QString &sql, bool remember, const QString &table = {}, int rowLimit = MaxRows);
     const TableInfo *findTable(const QString &name) const;
     void finished();
     void setStatus(const QString &status, const QString &kind);
@@ -121,6 +132,9 @@ private:
     ResultModel m_results;
     QFutureWatcher<QueryResult> m_watcher;
     bool m_hasResults = false;
+    bool m_truncated = false, m_readOnly = false, m_loadingMore = false;
+    int m_rowLimit = MaxRows;
+    int m_shownBefore = 0;
     QString m_status, m_statusKind, m_lastSql, m_lastError, m_notice;
     QString m_resultTable, m_runningTable, m_exportFormat;
     QStringList m_recent;

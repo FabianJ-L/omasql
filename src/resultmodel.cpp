@@ -73,6 +73,15 @@ void ResultModel::setResult(const QStringList &columns, const QStringList &types
 
 void ResultModel::clear() { setResult({}, {}, {}); }
 
+void ResultModel::setRows(const QList<QVariantList> &rows) {
+    beginResetModel();
+    m_all = rows;
+    sortRows();
+    applyFilter();
+    endResetModel();
+    emit changed();
+}
+
 int ResultModel::rowCount(const QModelIndex &parent) const { return parent.isValid() ? 0 : m_rows.size(); }
 int ResultModel::columnCount(const QModelIndex &parent) const { return parent.isValid() ? 0 : m_columns.size(); }
 
@@ -184,15 +193,23 @@ void ResultModel::sortBy(int column) {
     // possible once sorted, so it simply toggles.
     const bool descending = m_sortColumn == column ? !m_descending : false;
     beginResetModel();
+    m_sortColumn = column;
+    m_descending = descending;
+    sortRows();
+    applyFilter();
+    endResetModel();
+    emit changed();
+}
+
+void ResultModel::sortRows() {
+    if (m_sortColumn < 0)
+        return;
+    const int column = m_sortColumn;
+    const bool descending = m_descending;
     std::stable_sort(m_all.begin(), m_all.end(), [&](const QVariantList &a, const QVariantList &b) {
         const int c = compare(a.value(column), b.value(column));
         return descending ? c > 0 : c < 0;
     });
-    m_sortColumn = column;
-    m_descending = descending;
-    applyFilter();
-    endResetModel();
-    emit changed();
 }
 
 void ResultModel::setFilter(const QString &filter) {

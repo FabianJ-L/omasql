@@ -95,7 +95,14 @@ Rectangle {
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
-                    Layout.maximumWidth: pane.width * (fixButton.visible ? 0.45 : 0.6)
+                    Layout.maximumWidth: pane.width * (fixButton.visible || moreButton.visible ? 0.45 : 0.6)
+                }
+                BarButton {
+                    id: moreButton
+                    visible: backend.canLoadMore && !backend.running
+                    text: qsTr("Load %1 more").arg(backend.rowBatch.toLocaleString(Qt.locale(translator.language), 'f', 0))
+                    implicitHeight: 24
+                    onClicked: backend.loadMore()
                 }
                 BarButton {
                     id: fixButton
@@ -320,6 +327,15 @@ Rectangle {
                         table.forceLayout()
                         if (table.rows > 0)
                             table.positionViewAtRow(0, TableView.AlignTop)
+                    }
+                }
+                Connections {
+                    target: backend
+                    function onMoreLoaded(first) {
+                        // Pick up where the rows ended, unless a sort or a
+                        // filter moved them around.
+                        if (backend.results.sortColumn < 0 && backend.results.filter.length === 0 && first < table.rows)
+                            table.positionViewAtRow(first, TableView.AlignTop)
                     }
                 }
 

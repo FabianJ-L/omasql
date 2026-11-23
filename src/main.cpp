@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     Theme theme;
     PortalFilePicker picker;
     Backend backend(&picker);
-    AiFixer ai(&backend);
+    AiFixer ai(&backend, {}, nullptr, backend.stateDirectory());
     if (!parser.positionalArguments().isEmpty())
         backend.openDatabase(parser.positionalArguments().first());
 

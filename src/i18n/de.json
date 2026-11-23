@@ -112,5 +112,9 @@
   "The statement changed in the meantime, so the fix is on the clipboard": "Die Anweisung hat sich inzwischen geändert, die Korrektur liegt daher in der Zwischenablage",
   "Ctrl+Enter runs it, Ctrl+Z undoes it": "Strg+Enter führt sie aus, Strg+Z macht es rückgängig",
   "Opened %1 with the error": "%1 mit dem Fehler geöffnet",
-  "Let the AI agent fix the statement that failed": "Die fehlgeschlagene Anweisung vom KI-Agenten korrigieren lassen"
+  "Let the AI agent fix the statement that failed": "Die fehlgeschlagene Anweisung vom KI-Agenten korrigieren lassen",
+  "Load %1 more": "%1 weitere laden",
+  "Send this to %1?": "An %1 senden?",
+  "To fix the statement, Omasql sends it, SQLite's error, and the definitions of your tables to %1, which may pass them on to its provider. The rows in your tables are not sent. Omasql asks only once for each agent.": "Um die Anweisung zu korrigieren, schickt Omasql sie zusammen mit dem SQLite-Fehler und den Definitionen deiner Tabellen an %1, das sie an seinen Anbieter weitergeben kann. Die Zeilen deiner Tabellen werden nicht gesendet. Omasql fragt nur einmal pro Agent.",
+  "Send": "Senden"
 }

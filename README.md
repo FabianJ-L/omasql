@@ -43,14 +43,18 @@ bin/build && build/omasql some.db
   system is set up with (`omarchy default agent`; Claude and Codex answer in
   the background) and puts the corrected statement in its place, selected, for
   you to check and run. Ctrl+Z takes it back. Other agents open in their own
-  window with the error. `OMASQL_AGENT` picks a different one.
+  window with the error. `OMASQL_AGENT` picks a different one. The first time
+  for each agent, Omasql asks before sending anything: the statement, the
+  error, and the table definitions go out, never the rows.
 - **Schema browser** with row counts, primary and foreign keys, indexes, and
   a filter over tables and columns. Click a table to see its rows, click its
   arrow to open or close it, click a column to insert its name.
 - **Results grid** with typed headers, NULLs and numbers set apart, click to
   sort, drag a column edge to resize, arrows to move. **Ctrl+F** filters the
   rows as you type; Shift+arrows select a block that Ctrl+C copies in a form
-  spreadsheets paste.
+  spreadsheets paste. A query shows its first 20,000 rows; when it only
+  reads, **Load 20,000 more** fetches the next ones and keeps your sort,
+  filter, and column widths.
 - **Foreign keys are links**: Ctrl+click a value (or press Enter on it, or
   use the link in the row inspector) to open the row it points to.
 - **Query plans**: Ctrl+Shift+E shows how SQLite will run the statement

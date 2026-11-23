@@ -41,6 +41,11 @@ ApplicationWindow {
     function fixWithAi() {
         if (!ai.available || ai.busy || !editor.canFix || backend.lastError.length === 0)
             return
+        // The first time, say what leaves the machine.
+        if (!ai.allowed) {
+            aiConsent.open()
+            return
+        }
         ai.fix(editor.fixSql, backend.lastError, translator.language)
     }
 
@@ -273,6 +278,41 @@ ApplicationWindow {
             }
         }
         onAccepted: { backend.run(win.pendingSql); editor.focusEditor() }
+        onRejected: editor.focusEditor()
+    }
+
+    Dialog {
+        id: aiConsent
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(560, win.width - 64)
+        title: qsTr("Send this to %1?").arg(ai.agentLabel)
+        Material.roundedScale: theme.radius
+        Material.background: theme.colors.lighterBackground
+        standardButtons: Dialog.NoButton
+
+        Label {
+            width: parent.width
+            wrapMode: Text.Wrap
+            text: qsTr("To fix the statement, Omasql sends it, SQLite's error, and the definitions of your tables to %1, which may pass them on to its provider. The rows in your tables are not sent. Omasql asks only once for each agent.").arg(ai.agentLabel)
+            color: theme.colors.lightForeground
+        }
+
+        footer: DialogButtonBox {
+            Material.background: "transparent"
+            Button {
+                text: qsTr("Cancel")
+                flat: true
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+            }
+            Button {
+                text: qsTr("Send")
+                highlighted: true
+                Material.accent: theme.accent
+                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+            }
+        }
+        onAccepted: { ai.allow(); win.fixWithAi(); editor.focusEditor() }
         onRejected: editor.focusEditor()
     }
 }
