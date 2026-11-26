@@ -18,3 +18,5 @@ jobs:
         run: bin/test
       - name: Build the app
         run: bin/build
+      - name: Build the demo recorder
+        run: mkdir -p build/demo && cd build/demo && qmake6 ../../tools/demo/demo.pro && make -j"$(nproc)"

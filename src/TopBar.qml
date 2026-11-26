@@ -40,6 +40,26 @@ Rectangle {
             color: theme.colors.brightForeground
         }
 
+        // Says at a glance that statements can't change this file.
+        Rectangle {
+            visible: backend.open && backend.databaseReadOnly
+            implicitWidth: readOnlyLabel.implicitWidth + 12
+            implicitHeight: 20
+            radius: 4
+            color: "transparent"
+            border.color: theme.colors.yellow
+            border.width: 1
+
+            Label {
+                id: readOnlyLabel
+                anchors.centerIn: parent
+                text: qsTr("read-only")
+                color: theme.colors.yellow
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+            }
+        }
+
         Label {
             Layout.fillWidth: true
             text: backend.open && backend.databasePath !== ":memory:" ? backend.databasePath : (backend.open ? qsTr("in memory, gone when you close it") : "")

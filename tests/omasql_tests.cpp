@@ -6,6 +6,7 @@
 #include <QTemporaryDir>
 #include <QTextDocument>
 #include <QtTest>
+#include <unistd.h>
 
 #include "aifixer.h"
 #include "backend.h"
@@ -152,6 +153,51 @@ private slots:
         QString error;
         QVERIFY(!db.open(file.fileName(), &error));
         QVERIFY(!error.isEmpty());
+    }
+
+    void knowsWhenADatabaseIsReadOnly()
+    {
+        QTemporaryDir dir;
+        const QString file = dir.filePath("ro.db");
+        {
+            Database db;
+            QVERIFY(db.open(file, nullptr));
+            QVERIFY(db.execute("create table t (x)", 10).ok);
+            QVERIFY(!db.isReadOnly());
+        }
+
+        FakePicker picker;
+        Backend backend(&picker, dir.filePath("state"));
+        // A file:// URL with parameters stays a URI, so mode=ro holds.
+        QVERIFY(backend.openDatabase(QUrl::fromLocalFile(file).toString() + "?mode=ro"));
+        QVERIFY(backend.databaseReadOnly());
+        QCOMPARE(backend.databaseName(), QString("ro.db"));
+        QSignalSpy finished(&backend, &Backend::queryFinished);
+        backend.run("insert into t values (1)");
+        QVERIFY(finished.wait());
+        QVERIFY(backend.lastError().contains("readonly"));
+
+        // A relative URI is remembered as an absolute one, named by its file.
+        const QString before = QDir::currentPath();
+        QDir::setCurrent(dir.path());
+        QVERIFY(backend.openDatabase("file:ro.db?mode=ro"));
+        QDir::setCurrent(before);
+        QCOMPARE(backend.databasePath(), "file:" + QFileInfo(file).absoluteFilePath() + "?mode=ro");
+        QVERIFY(backend.databaseReadOnly());
+        const auto recent = backend.recent().value(0).toMap();
+        QCOMPARE(recent.value("name").toString(), QString("ro.db"));
+        QVERIFY(recent.value("exists").toBool());
+
+        QVERIFY(backend.openDatabase(file));
+        QVERIFY(!backend.databaseReadOnly());
+
+        // A file the user can't write opens read-only, too (root can always write).
+        if (::geteuid() != 0) {
+            QFile::setPermissions(file, QFileDevice::ReadOwner);
+            QVERIFY(backend.openDatabase(file));
+            QVERIFY(backend.databaseReadOnly());
+            QFile::setPermissions(file, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        }
     }
 
     void sortsAndFormatsResults()

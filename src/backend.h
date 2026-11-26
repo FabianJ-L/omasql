@@ -17,6 +17,9 @@ class Backend : public QObject {
     Q_PROPERTY(bool open READ isOpen NOTIFY databaseChanged)
     Q_PROPERTY(QString databasePath READ databasePath NOTIFY databaseChanged)
     Q_PROPERTY(QString databaseName READ databaseName NOTIFY databaseChanged)
+    // The open database can't be written: opened as file:…?mode=ro, or the
+    // file isn't writable.
+    Q_PROPERTY(bool databaseReadOnly READ databaseReadOnly NOTIFY databaseChanged)
     Q_PROPERTY(QVariantList tables READ tables NOTIFY schemaChanged)
     Q_PROPERTY(QStringList tableNames READ tableNames NOTIFY schemaChanged)
     Q_PROPERTY(bool running READ running NOTIFY runningChanged)
@@ -48,6 +51,9 @@ public:
     QString databasePath() const { return m_db.path(); }
     QString stateDirectory() const { return m_stateDirectory; }
     QString databaseName() const;
+    bool databaseReadOnly() const { return m_db.isReadOnly(); }
+    // The file a database path names: itself, or the file in a file: URI.
+    static QString fileOf(const QString &path);
     QVariantList tables() const;
     QStringList tableNames() const;
     bool running() const { return m_watcher.isRunning(); }

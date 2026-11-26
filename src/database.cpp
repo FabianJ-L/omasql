@@ -75,6 +75,10 @@ bool Database::open(const QString &path, QString *error) {
     return true;
 }
 
+bool Database::isReadOnly() const {
+    return m_db && sqlite3_db_readonly(m_db, "main") == 1;
+}
+
 void Database::close() {
     if (m_db)
         sqlite3_close_v2(m_db);

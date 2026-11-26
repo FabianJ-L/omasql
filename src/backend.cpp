@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLocale>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QSet>
 #include <QUrl>
@@ -89,7 +90,20 @@ QString Backend::databaseName() const {
         return {};
     if (m_db.path() == ":memory:")
         return tr("Scratch database");
-    return QFileInfo(m_db.path()).fileName();
+    return QFileInfo(fileOf(m_db.path())).fileName();
+}
+
+QString Backend::fileOf(const QString &path) {
+    if (!path.startsWith("file:"))
+        return path;
+    QString file = path.mid(5);
+    file.truncate(qMin(file.indexOf('?') < 0 ? file.size() : file.indexOf('?'),
+                       file.indexOf('#') < 0 ? file.size() : file.indexOf('#')));
+    if (file.startsWith("//localhost/"))
+        file = file.mid(11);
+    else if (file.startsWith("///"))
+        file = file.mid(2);
+    return QUrl::fromPercentEncoding(file.toUtf8());
 }
 
 QVariantList Backend::tables() const {
@@ -116,7 +130,7 @@ QStringList Backend::tableNames() const {
 QVariantList Backend::recent() const {
     QVariantList out;
     for (const auto &path : m_recent) {
-        const QFileInfo info(path);
+        const QFileInfo info(fileOf(path));
         out << QVariantMap{{"path", path}, {"name", info.fileName()},
                            {"folder", QDir::toNativeSeparators(info.absolutePath()).replace(QDir::homePath(), "~")},
                            {"exists", info.exists()}};
@@ -126,10 +140,23 @@ QVariantList Backend::recent() const {
 
 bool Backend::openDatabase(const QString &rawPath) {
     QString path = rawPath.trimmed();
-    if (path.startsWith("file://"))
+    // A plain file:// URL (a dropped file) is just the file; one with
+    // parameters (?mode=ro) stays a URI for SQLite to read.
+    if (path.startsWith("file://") && !path.contains('?'))
         path = QUrl(path).toLocalFile();
     if (path.startsWith("~/"))
         path = QDir::homePath() + path.mid(1);
+    if (path.startsWith("file:~/"))
+        path = "file:" + QDir::homePath() + path.mid(6);
+    if (path.startsWith("file:") && !path.startsWith("file:/")) {
+        // A relative URI would open a different file from another folder, so
+        // it is remembered (and opened) as an absolute one.
+        const qsizetype end = path.indexOf(QRegularExpression("[?#]"));
+        const QString relative = QUrl::fromPercentEncoding(path.mid(5, end < 0 ? -1 : end - 5).toUtf8());
+        QString file = QFileInfo(relative).absoluteFilePath();
+        file.replace('%', "%25").replace('?', "%3f").replace('#', "%23");
+        path = "file:" + file + (end < 0 ? QString() : path.mid(end));
+    }
     if (path != ":memory:" && !path.startsWith("file:"))
         path = QFileInfo(path).absoluteFilePath();
 

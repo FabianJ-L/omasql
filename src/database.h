@@ -53,6 +53,9 @@ public:
     void close();
     bool isOpen() const { return m_db; }
     QString path() const { return m_path; }
+    // True when SQLite opened the file without write access: a URI with
+    // mode=ro or immutable=1, or a file the user can't write to.
+    bool isReadOnly() const;
 
     QList<TableInfo> schema() const;
     QueryResult execute(const QString &sql, int maxRows) const;

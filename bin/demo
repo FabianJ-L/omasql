@@ -1,0 +1,21 @@
+#!/bin/sh
+# Records docs/demo.gif from the real window, offscreen (see tools/demo/demo.cpp).
+# Needs ffmpeg on top of the build dependencies.
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+BUILD="$ROOT/build/demo"
+FRAMES="$BUILD/frames"
+mkdir -p "$BUILD"
+rm -rf "$FRAMES"
+cd "$BUILD"
+
+qmake6 "$ROOT/tools/demo/demo.pro"
+make -j"$(nproc)"
+QT_FORCE_STDERR_LOGGING=1 ./omasql_demo "$FRAMES"
+
+# 80 ms frames; a palette built from the frames keeps the theme's colors exact.
+ffmpeg -v error -y -framerate 12.5 -i "$FRAMES/%05d.png" \
+    -vf "scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" \
+    "$ROOT/docs/demo.gif"
+ls -lh "$ROOT/docs/demo.gif"
