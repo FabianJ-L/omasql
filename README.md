@@ -29,7 +29,7 @@ sudo pacman -U https://github.com/FabianJ-L/omasql/releases/download/v0.4.0/omas
 
 Omasql then shows up in the app launcher.
 
-**Update:** run `oma-update`. Every Oma app (Omasql, OmaTask, Token Tally)
+**Update:** run `oma-update`. Every Oma app (Omasql, OmaTask, OmaTokens)
 installs it; it updates all of them at once, from GitHub.
 
 **From source** (needs `qt6-base`, `qt6-declarative`, `qt6-wayland`, `sqlite`):
