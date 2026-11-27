@@ -8,9 +8,12 @@ Rectangle {
     property string text
     property string hint
     property bool primary: false
+    // Leaves the shortcut out where space is short, so labels never overlap.
+    property bool compact: false
     signal clicked()
 
     implicitWidth: row.implicitWidth + 20
+    Layout.minimumWidth: implicitWidth
     implicitHeight: 30
     radius: Math.min(4, theme.radius)
     color: primary ? (hover.hovered ? Qt.lighter(theme.accent, 1.1) : theme.accent)
@@ -28,7 +31,7 @@ Rectangle {
             font.weight: button.primary ? Font.DemiBold : Font.Normal
         }
         Text {
-            visible: button.hint.length > 0
+            visible: button.hint.length > 0 && !button.compact
             text: button.hint
             color: button.primary ? theme.accentForeground : theme.colors.mutedForeground
             opacity: button.primary ? 0.65 : 1

@@ -6,7 +6,7 @@ import QtQuick.Layouts
 Rectangle {
     id: bar
     implicitHeight: 48
-    color: theme.colors.darkBackground
+    color: Qt.alpha(theme.colors.darkBackground, 0.5)
 
     signal runClicked()
     signal explainClicked()
@@ -25,13 +25,6 @@ Rectangle {
         anchors.leftMargin: 16
         anchors.rightMargin: 10
         spacing: 10
-
-        Rectangle {
-            Layout.preferredWidth: 10
-            Layout.preferredHeight: 10
-            radius: 5
-            color: backend.running ? theme.colors.yellow : backend.open ? theme.accent : theme.colors.mutedForeground
-        }
 
         Label {
             text: backend.open ? backend.databaseName : "Omasql"
@@ -69,23 +62,27 @@ Rectangle {
         }
 
         BarButton {
+            compact: bar.width < 1000
             visible: backend.open
             text: qsTr("History")
             hint: "Ctrl+H"
             onClicked: bar.historyClicked()
         }
         BarButton {
+            compact: bar.width < 1000
             text: qsTr("Open")
             hint: "Ctrl+O"
             onClicked: backend.chooseDatabase()
         }
         BarButton {
+            compact: bar.width < 1000
             visible: backend.open && bar.width > 900
             text: qsTr("Explain")
             hint: "Ctrl+⇧E"
             onClicked: bar.explainClicked()
         }
         BarButton {
+            compact: bar.width < 1000
             visible: backend.open
             primary: true
             text: backend.running ? qsTr("Cancel") : qsTr("Run")
@@ -93,6 +90,7 @@ Rectangle {
             onClicked: backend.running ? backend.cancel() : bar.runClicked()
         }
         BarButton {
+            compact: bar.width < 1000
             text: "?"
             hint: "F1"
             onClicked: bar.helpClicked()

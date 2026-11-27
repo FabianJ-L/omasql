@@ -16,7 +16,7 @@ Rectangle {
 
     implicitHeight: 32
     radius: Math.min(4, theme.radius)
-    color: theme.colors.background
+    color: Qt.alpha(theme.colors.background, 0.6)
     border.color: input.activeFocus ? theme.accent : theme.colors.border
 
     TextInput {
@@ -42,16 +42,23 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
         anchors.leftMargin: 10
+        anchors.right: hintText.visible ? hintText.left : parent.right
+        anchors.rightMargin: hintText.visible ? 8 : 10
         visible: input.text.length === 0
         text: field.placeholder
+        elide: Text.ElideRight
         color: theme.colors.mutedForeground
         font.pixelSize: 13
     }
+    // The shortcut only shows when the placeholder fits beside it.
+    TextMetrics { id: placeholderWidth; text: field.placeholder; font.pixelSize: 13 }
     Text {
+        id: hintText
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
         anchors.rightMargin: 10
         visible: input.text.length === 0 && field.hint.length > 0
+                 && field.width >= placeholderWidth.advanceWidth + implicitWidth + 28
         text: field.hint
         color: theme.colors.mutedForeground
         font.pixelSize: 11

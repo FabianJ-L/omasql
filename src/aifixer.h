@@ -22,6 +22,8 @@ class AiFixer : public QObject {
     Q_PROPERTY(bool available READ available NOTIFY agentChanged)
     Q_PROPERTY(QString agent READ agent NOTIFY agentChanged)
     Q_PROPERTY(QString agentLabel READ agentLabel NOTIFY agentChanged)
+    // The agents installed on this system, the chosen one among them.
+    Q_PROPERTY(QStringList agents READ agents NOTIFY agentChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     // The user agreed to send statements and the schema to this agent.
     Q_PROPERTY(bool allowed READ allowed NOTIFY allowedChanged)
@@ -43,7 +45,14 @@ public:
 
     bool available() const { return !m_agent.isEmpty(); }
     QString agent() const { return m_agent; }
-    QString agentLabel() const;
+    QString agentLabel() const { return label(m_agent); }
+    QStringList agents() const;
+    // Picks the agent by hand; remembered in stateDirectory, and it wins over
+    // the system's default agent from then on.
+    Q_INVOKABLE void setAgent(const QString &agent);
+    Q_INVOKABLE static QString label(const QString &agent);
+    // Answers in the background (true), or opens in its own terminal.
+    Q_INVOKABLE static bool answersInBackground(const QString &agent);
     bool busy() const { return m_process != nullptr; }
     bool allowed() const;
     Q_INVOKABLE void allow();
@@ -79,6 +88,7 @@ private:
     void launch(const Command &command, const QString &text, const QProcessEnvironment &env);
     void stop();
     QString consentPath() const;
+    QString choicePath() const;
 
     QPointer<Backend> m_backend;
     QString m_agent;

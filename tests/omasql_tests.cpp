@@ -457,6 +457,25 @@ private slots:
         QVERIFY(!AiFixer(nullptr, "codex", nullptr, dir.path()).allowed());
     }
 
+    void remembersTheChosenAgent()
+    {
+        QTemporaryDir dir;
+        {
+            AiFixer ai(nullptr, "claude", nullptr, dir.path());
+            QSignalSpy changed(&ai, &AiFixer::agentChanged);
+            ai.setAgent("codex");
+            QCOMPARE(ai.agent(), QString("codex"));
+            QCOMPARE(ai.agentLabel(), QString("Codex"));
+            QCOMPARE(changed.size(), 1);
+            QVERIFY(ai.agents().contains("codex"));
+        }
+        // Without a forced agent, the saved choice wins over the system's default.
+        qunsetenv("OMASQL_AGENT");
+        QCOMPARE(AiFixer(nullptr, {}, nullptr, dir.path()).agent(), QString("codex"));
+        // A forced agent still wins over the saved choice.
+        QCOMPARE(AiFixer(nullptr, "claude", nullptr, dir.path()).agent(), QString("claude"));
+    }
+
     void readsTheAgentsFix()
     {
         QString note;

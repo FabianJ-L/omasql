@@ -8,7 +8,7 @@ import QtQuick.Layouts
 // it. Clicking a column inserts its name.
 Rectangle {
     id: panel
-    color: theme.colors.darkBackground
+    color: Qt.alpha(theme.colors.darkBackground, 0.5)
 
     signal insertRequested(string text)
 

@@ -11,7 +11,9 @@ ApplicationWindow {
     minimumHeight: 520
     visible: true
     title: backend.open ? backend.databaseName + " — Omasql" : "Omasql"
-    color: theme.colors.background
+    // See-through like the terminal, so Hyprland's blur shows behind the
+    // window. Panels only tint it; dialogs, menus and popups stay solid.
+    color: Qt.alpha(theme.colors.background, 0.72)
 
     Material.theme: Material.Dark
     Material.accent: theme.accent

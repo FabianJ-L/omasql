@@ -7,7 +7,7 @@ import Omasql
 // running the statement under the cursor.
 Rectangle {
     id: root
-    color: theme.colors.background
+    color: "transparent"
 
     property bool loading: false
     property int previousLength: 0
@@ -245,7 +245,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         width: Math.max(44, numbers.implicitWidth + 20)
-        color: theme.colors.darkBackground
+        color: Qt.alpha(theme.colors.darkBackground, 0.5)
         clip: true
 
         Item {

@@ -6,6 +6,7 @@
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickWindow>
 #include <QQuickStyle>
 #include <QUrl>
 #include <QtQml>
@@ -28,6 +29,10 @@ int main(int argc, char *argv[]) {
     app.setWindowIcon(QIcon::fromTheme("omasql"));
 
     QQuickStyle::setStyle("Material");
+
+    // A see-through window background, so Hyprland's blur shows behind the
+    // app the way it does behind the terminal.
+    QQuickWindow::setDefaultAlphaBuffer(true);
 
     // Installed before anything is translated, and every qsTr() binding is
     // re-evaluated when the Omarchy language changes.

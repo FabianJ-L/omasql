@@ -8,7 +8,7 @@ import QtQml.Models
 // column headers, row numbers, click-to-sort, and columns you can drag wider.
 Rectangle {
     id: pane
-    color: theme.colors.background
+    color: "transparent"
 
     readonly property int currentRow: table.currentRow
     readonly property int currentColumn: table.currentColumn
@@ -63,6 +63,8 @@ Rectangle {
     }
 
     readonly property real charWidth: metrics.averageCharacterWidth
+    // Below this the toolbar drops the shortcut hints from its buttons.
+    readonly property bool narrow: pane.width < 950
     FontMetrics { id: metrics; font.family: win.mono; font.pixelSize: 13 }
 
     ColumnLayout {
@@ -72,7 +74,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 34
-            color: theme.colors.darkBackground
+            color: Qt.alpha(theme.colors.darkBackground, 0.5)
 
             Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: theme.colors.border }
 
@@ -80,7 +82,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: 14
                 anchors.rightMargin: 8
-                spacing: 12
+                spacing: pane.narrow ? 8 : 12
 
                 BusyIndicator {
                     visible: backend.running || ai.busy
@@ -95,10 +97,16 @@ Rectangle {
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
-                    Layout.maximumWidth: pane.width * (fixButton.visible || moreButton.visible ? 0.45 : 0.6)
+                    // Gives way first when the bar is short of room; the
+                    // editor still marks where the error is.
+                    Layout.fillWidth: pane.narrow
+                    Layout.minimumWidth: Math.min(implicitWidth, 60)
+                    Layout.preferredWidth: implicitWidth
+                    Layout.maximumWidth: Math.min(implicitWidth, pane.width * (fixButton.visible || moreButton.visible ? 0.45 : 0.6))
                 }
                 BarButton {
                     id: moreButton
+                    compact: pane.narrow
                     visible: backend.canLoadMore && !backend.running
                     text: qsTr("Load %1 more").arg(backend.rowBatch.toLocaleString(Qt.locale(translator.language), 'f', 0))
                     implicitHeight: 24
@@ -106,6 +114,7 @@ Rectangle {
                 }
                 BarButton {
                     id: fixButton
+                    compact: pane.narrow
                     visible: ai.available && (ai.busy || (pane.canFix && backend.statusKind === "error"))
                     primary: !ai.busy
                     text: ai.busy ? qsTr("%1 is fixing it…").arg(ai.agentLabel) : qsTr("Fix with %1").arg(ai.agentLabel)
@@ -113,8 +122,37 @@ Rectangle {
                     implicitHeight: 24
                     onClicked: ai.busy ? ai.cancel() : pane.fixRequested()
                 }
+                // Which agent fixes it: Claude, Codex, or any other one installed.
+                BarButton {
+                    id: agentButton
+                    visible: fixButton.visible && !ai.busy && ai.agents.length > 1
+                    text: "▾"
+                    implicitHeight: 24
+                    onClicked: agentMenu.popup(agentButton, 0, agentButton.height + 2)
+                    ToolTip.visible: agentHover.hovered
+                    ToolTip.text: qsTr("Choose the AI agent")
+                    ToolTip.delay: 400
+                    HoverHandler { id: agentHover }
+                    Menu {
+                        id: agentMenu
+                        Material.roundedScale: theme.radius
+                        Repeater {
+                            model: ai.agents
+                            MenuItem {
+                                required property string modelData
+                                text: ai.answersInBackground(modelData) ? ai.label(modelData)
+                                                                         : qsTr("%1 (in a terminal)").arg(ai.label(modelData))
+                                checkable: true
+                                checked: modelData === ai.agent
+                                onTriggered: ai.setAgent(modelData)
+                            }
+                        }
+                    }
+                }
                 Text {
+                    // Only takes the room left over.
                     Layout.fillWidth: true
+                    Layout.preferredWidth: 0
                     text: backend.lastSql.replace(/\s+/g, " ")
                     color: theme.colors.mutedForeground
                     font.family: win.mono
@@ -131,6 +169,9 @@ Rectangle {
                 FilterField {
                     id: filter
                     visible: backend.hasResults
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 90
+                    Layout.maximumWidth: 240
                     Layout.preferredWidth: Math.min(240, pane.width * 0.25)
                     implicitHeight: 24
                     placeholder: qsTr("Filter rows")
@@ -151,6 +192,7 @@ Rectangle {
                 }
                 BarButton {
                     id: copyButton
+                    compact: pane.narrow
                     visible: backend.hasResults
                     text: qsTr("Copy") + " ▾"
                     hint: "Ctrl+Shift+C"
@@ -171,6 +213,7 @@ Rectangle {
                 }
                 BarButton {
                     id: exportButton
+                    compact: pane.narrow
                     visible: backend.hasResults
                     text: qsTr("Export") + " ▾"
                     hint: "Ctrl+E"
@@ -210,7 +253,7 @@ Rectangle {
                     required property int column
                     implicitHeight: 44
                     implicitWidth: 80
-                    color: theme.colors.lighterBackground
+                    color: Qt.alpha(theme.colors.lighterBackground, 0.7)
                     readonly property bool sorted: backend.results.sortColumn === column
 
                     Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: theme.colors.border }
@@ -269,7 +312,7 @@ Rectangle {
                     required property int row
                     implicitWidth: Math.max(44, rowNumbers.advanceWidth(String(backend.results.rows)) + 20)
                     implicitHeight: 28
-                    color: row === table.currentRow ? theme.colors.selection : theme.colors.darkBackground
+                    color: row === table.currentRow ? theme.colors.selection : Qt.alpha(theme.colors.darkBackground, 0.5)
                     Text {
                         anchors.fill: parent
                         anchors.rightMargin: 8
@@ -363,7 +406,7 @@ Rectangle {
                     implicitHeight: 28
                     color: current || selected ? theme.colors.selection
                          : row === table.currentRow ? Qt.alpha(theme.colors.selection, 0.45)
-                         : row % 2 ? theme.colors.background : Qt.lighter(theme.colors.background, 1.06)
+                         : row % 2 ? "transparent" : Qt.alpha(theme.colors.foreground, 0.03)
                     border.width: current ? 1 : 0
                     border.color: theme.accent
 

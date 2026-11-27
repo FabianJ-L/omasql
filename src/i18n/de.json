@@ -117,5 +117,7 @@
   "Load %1 more": "%1 weitere laden",
   "Send this to %1?": "An %1 senden?",
   "To fix the statement, Omasql sends it, SQLite's error, and the definitions of your tables to %1, which may pass them on to its provider. The rows in your tables are not sent. Omasql asks only once for each agent.": "Um die Anweisung zu korrigieren, schickt Omasql sie zusammen mit dem SQLite-Fehler und den Definitionen deiner Tabellen an %1, das sie an seinen Anbieter weitergeben kann. Die Zeilen deiner Tabellen werden nicht gesendet. Omasql fragt nur einmal pro Agent.",
-  "Send": "Senden"
+  "Send": "Senden",
+  "Choose the AI agent": "KI-Agent wählen",
+  "%1 (in a terminal)": "%1 (im Terminal)"
 }

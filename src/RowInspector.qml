@@ -7,7 +7,7 @@ import QtQuick.Layouts
 // and long text in full, so wide rows read without scrolling sideways.
 Rectangle {
     id: inspector
-    color: theme.colors.darkBackground
+    color: Qt.alpha(theme.colors.darkBackground, 0.5)
 
     property int row: -1
     property int column: -1

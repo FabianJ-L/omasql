@@ -64,7 +64,9 @@ opened with `mode=ro` or because the file isn't writable, shows
   system is set up with (`omarchy default agent`; Claude and Codex answer in
   the background) and puts the corrected statement in its place, selected, for
   you to check and run. Ctrl+Z takes it back. Other agents open in their own
-  window with the error. `OMASQL_AGENT` picks a different one. The first time
+  window with the error. The ▾ beside the button picks another installed
+  agent, such as Codex, and Omasql remembers it; `OMASQL_AGENT` forces one
+  from the command line. The first time
   for each agent, Omasql asks before sending anything: the statement, the
   error, and the table definitions go out, never the rows.
 - **Schema browser** with row counts, primary and foreign keys, indexes, and

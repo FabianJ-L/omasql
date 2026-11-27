@@ -50,10 +50,19 @@ QString lastLine(const QString &text) {
 AiFixer::AiFixer(Backend *backend, const QString &agent, QObject *parent, const QString &stateDirectory)
     : QObject(parent), m_backend(backend), m_agent(agent.isEmpty() ? fallbackAgent() : agent),
       m_stateDirectory(stateDirectory) {
+    const bool forced = !agent.isEmpty() || !qEnvironmentVariable("OMASQL_AGENT").trimmed().isEmpty();
+    // An agent picked in Omasql wins over the system's default.
+    QString chosen;
+    if (!forced && !choicePath().isEmpty()) {
+        QFile file(choicePath());
+        if (file.open(QIODevice::ReadOnly))
+            chosen = QString::fromUtf8(file.readAll()).trimmed();
+    }
+    if (!chosen.isEmpty())
+        m_agent = chosen;
     // Omarchy's choice wins over the fallback, once it answers; asked in the
     // background so the window doesn't wait for it.
-    if (agent.isEmpty() && qEnvironmentVariable("OMASQL_AGENT").trimmed().isEmpty()
-        && !QStandardPaths::findExecutable("omarchy-default-agent").isEmpty()) {
+    if (!forced && chosen.isEmpty() && !QStandardPaths::findExecutable("omarchy-default-agent").isEmpty()) {
         auto *process = new QProcess(this);
         connect(process, &QProcess::finished, this, [this, process](int code) {
             const QString chosen = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
@@ -97,6 +106,41 @@ QString AiFixer::fallbackAgent() {
     return {};
 }
 
+QString AiFixer::choicePath() const {
+    return m_stateDirectory.isEmpty() ? QString() : m_stateDirectory + "/ai-agent.txt";
+}
+
+QStringList AiFixer::agents() const {
+    QStringList list;
+    for (const char *agent : {"claude", "codex", "opencode", "gemini", "copilot", "cursor-agent", "qwen", "amp",
+                              "crush", "kimi", "grok"})
+        if (!findAgentProgram(agent).isEmpty())
+            list << agent;
+    if (!m_agent.isEmpty() && !list.contains(m_agent))
+        list.prepend(m_agent);
+    return list;
+}
+
+void AiFixer::setAgent(const QString &agent) {
+    const QString name = agent.trimmed();
+    if (name.isEmpty() || name == m_agent || busy())
+        return;
+    m_agent = name;
+    if (!choicePath().isEmpty()) {
+        QDir().mkpath(m_stateDirectory);
+        QFile file(choicePath());
+        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            file.write((name + "\n").toUtf8());
+    }
+    emit agentChanged();
+    emit allowedChanged();
+}
+
+bool AiFixer::answersInBackground(const QString &agent) {
+    Command command;
+    return headlessCommand(agent, QStringLiteral("reply.txt"), &command);
+}
+
 QString AiFixer::consentPath() const {
     return m_stateDirectory.isEmpty() ? QString() : m_stateDirectory + "/ai-allowed.txt";
 }
@@ -126,17 +170,17 @@ void AiFixer::allow() {
     emit allowedChanged();
 }
 
-QString AiFixer::agentLabel() const {
-    if (m_agent.contains('/'))
+QString AiFixer::label(const QString &agent) {
+    if (agent.contains('/'))
         return tr("AI");
     static const QHash<QString, QString> names{
         {"claude", "Claude"}, {"codex", "Codex"}, {"opencode", "OpenCode"}, {"copilot", "Copilot"},
         {"cursor-agent", "Cursor"}, {"agy", "Antigravity"}, {"openclaw", "OpenClaw"}, {"qwen", "Qwen"},
         {"kimi", "Kimi"}, {"grok", "Grok"}, {"hermes", "Hermes"}, {"amp", "Amp"}, {"kilo", "Kilo"},
-        {"devin", "Devin"}, {"crush", "Crush"}, {"muse", "Muse"}, {"pi", "Pi"}};
-    if (names.contains(m_agent))
-        return names.value(m_agent);
-    return m_agent.isEmpty() ? tr("AI") : m_agent.left(1).toUpper() + m_agent.mid(1);
+        {"devin", "Devin"}, {"crush", "Crush"}, {"muse", "Muse"}, {"pi", "Pi"}, {"gemini", "Gemini"}};
+    if (names.contains(agent))
+        return names.value(agent);
+    return agent.isEmpty() ? tr("AI") : agent.left(1).toUpper() + agent.mid(1);
 }
 
 // One question, one answer, no tools: the agent only reads the prompt.
